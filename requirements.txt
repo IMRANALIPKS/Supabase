@@ -1,5 +1,8 @@
 streamlit
 pandas
 psycopg2-binary
-streamlit-aggrid
 openpyxl
+sqlalchemy
+plotly
+reportlab
+streamlit-aggrid
