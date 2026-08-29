@@ -94,6 +94,7 @@ def apply_elegant_theme():
                 0 2px 0 rgba(255,255,255,1) inset,
                 0 -3px 4px rgba(16,48,82,.16) inset,
                 0 1px 0 #ffffff, 0 4px 0 #93b8d6, 0 18px 32px rgba(16,48,82,.26);
+            transform: translateY(0);
             transition: transform .12s ease, box-shadow .12s ease;
         }
         [data-testid="stMetric"]:hover {
@@ -180,6 +181,26 @@ def apply_elegant_theme():
             background: linear-gradient(180deg, #35d5ec 0%, #0d8bac 48%, #075e7a 100%);
             color: #ffffff;
         }
+        .streamlit-expanderHeader {
+            font-weight: 600;
+            color: var(--od-ink);
+            background: #ffffff;
+            border-radius: 8px;
+        }
+        [data-testid="stExpander"] {
+            border: 1px solid #92b8d8 !important;
+            border-radius: 10px !important;
+            background: linear-gradient(180deg, #ffffff 0%, #eef6fc 100%) !important;
+            box-shadow:
+                0 2px 0 rgba(255,255,255,1) inset,
+                0 -3px 5px rgba(16,48,82,.14) inset,
+                0 1px 0 #ffffff, 0 4px 0 #93b8d6,
+                0 14px 26px rgba(16,48,82,.22) !important;
+            overflow: hidden;
+        }
+        [data-testid="stExpander"] summary {
+            box-shadow: inset 0 -2px 4px rgba(16,48,82,.10);
+        }
         [data-testid="stCheckbox"] {
             background: linear-gradient(180deg, #ffffff 0%, #eaf6ff 100%);
             border: 1px solid #a9c6e0; border-radius: 7px; padding: 6px 10px;
@@ -203,6 +224,55 @@ def apply_elegant_theme():
         """,
         unsafe_allow_html=True
     )
+
+
+# ============================================================
+# COMPACT 3D SUMMARY CARDS (same as app.py)
+# ============================================================
+
+SUMMARY_CARD_STYLE = """
+    height:58px;
+    padding:5px 10px;
+    box-sizing:border-box;
+    text-align:center;
+    border:1px solid #8fabc4;
+    border-radius:9px;
+    background:linear-gradient(
+        180deg,
+        #e4eff8 0%,
+        #ffffff 26%
+    );
+    box-shadow:
+        inset 0 3px 6px rgba(16,32,51,.26),
+        inset 0 -2px 0 rgba(255,255,255,.95),
+        0 1px 0 rgba(255,255,255,.9);
+    font-family:"Segoe UI","Aptos","Calibri",sans-serif;
+"""
+
+
+def render_summary_card(label: str, value: str) -> None:
+    """Render a compact 3D KPI card matching app.py styling."""
+    st.html(f"""
+    <div style="{SUMMARY_CARD_STYLE}">
+        <div style="
+            font-size:11px;
+            font-weight:600;
+            color:#30465a;
+            line-height:15px;
+        ">
+            {label}
+        </div>
+        <div style="
+            font-size:20px;
+            font-weight:700;
+            color:#102033;
+            line-height:25px;
+            text-shadow:0 1px 0 rgba(255,255,255,.6);
+        ">
+            {value}
+        </div>
+    </div>
+    """)
 
 
 # ============================================================
@@ -824,18 +894,19 @@ else:
             by=_default_sort_cols, ascending=True, na_position="last"
         ).reset_index(drop=True)
 
+    rqty = pd.to_numeric(report_df[qty_col], errors="coerce").fillna(0).sum() if qty_col else 0
+    ramt = pd.to_numeric(report_df[amount_col], errors="coerce").fillna(0).sum() if amount_col else 0
+
     rk1, rk2, rk3 = st.columns(3)
 
     with rk1:
-        st.metric("Records", f"{len(report_df):,}")
+        render_summary_card("Records", f"{len(report_df):,}")
 
     with rk2:
-        rqty = pd.to_numeric(report_df[qty_col], errors="coerce").fillna(0).sum() if qty_col else 0
-        st.metric("Total Quantity", f"{rqty:,.2f}")
+        render_summary_card("Total Quantity", f"{rqty:,.2f}")
 
     with rk3:
-        ramt = pd.to_numeric(report_df[amount_col], errors="coerce").fillna(0).sum() if amount_col else 0
-        st.metric("Total Amount", f"{ramt:,.2f}")
+        render_summary_card("Total Amount", f"{ramt:,.2f}")
 
     if report_df.empty:
         st.info("No records match the selected branch(es)/date range.")
