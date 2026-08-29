@@ -24,86 +24,942 @@ st.set_page_config(
 
 
 # ============================================================
-# CUSTOM CSS
+# CUSTOM CSS — ELEGANT 3D THEME (matches supply_sheet / invoice apps)
 # ============================================================
 
-st.markdown("""
-<style>
+def apply_elegant_theme():
 
-    /* Main background */
-    .stApp {
-        background-color: #f5f7fa;
+    st.markdown(
+        """
+        <style>
+
+        :root {
+
+            --od-ink: #102033;
+            --od-muted: #5d6f86;
+            --od-line: #c4d7eb;
+            --od-soft: #f3f8ff;
+            --od-panel: #ffffff;
+            --od-accent: #00a6c8;
+            --od-accent-dark: #075e7a;
+            --od-gold: #d69b2d;
+
+        }
+
+
+        .stApp {
+
+            background:
+                radial-gradient(
+                    circle at 12% 8%,
+                    rgba(0, 166, 200, .16),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 86% 6%,
+                    rgba(69, 94, 181, .14),
+                    transparent 26%
+                ),
+                linear-gradient(
+                    180deg,
+                    #f6fbff 0%,
+                    #eaf3fb 48%,
+                    #f7f9fc 100%
+                );
+
+            color: var(--od-ink);
+
+            font-family:
+                "Segoe UI",
+                "Inter",
+                "Aptos",
+                "Calibri",
+                sans-serif;
+
+        }
+
+
+        .block-container {
+
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+
+            max-width: 100%;
+
+        }
+
+
+        h1, h2, h3 {
+
+            font-family:
+                "Segoe UI Semibold",
+                "Segoe UI",
+                "Inter",
+                sans-serif;
+
+            letter-spacing: 0;
+
+            color: var(--od-ink);
+
+            text-shadow:
+                0 1px 0
+                rgba(255,255,255,.85),
+                0 -1px 0
+                rgba(16,32,51,.15);
+
+        }
+
+
+        h2, h3 {
+
+            padding-bottom: 6px;
+
+            border-bottom:
+                1px solid var(--od-line);
+
+        }
+
+
+        /* =====================================================
+           MAIN TITLE / SUBTITLE
+           ===================================================== */
+
+        .main-title {
+
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--od-ink);
+            margin-bottom: 0px;
+
+            font-family:
+                "Segoe UI Semibold",
+                "Segoe UI",
+                "Inter",
+                sans-serif;
+
+            text-shadow:
+                0 1px 0
+                rgba(255,255,255,.85),
+                0 -1px 0
+                rgba(16,32,51,.15);
+
+        }
+
+        .sub-title {
+
+            font-size: 15px;
+            color: var(--od-muted);
+            font-weight: 600;
+            margin-bottom: 20px;
+
+        }
+
+
+        /* =====================================================
+           SECTION TITLES (raised, accent-underlined)
+           ===================================================== */
+
+        .section-title {
+
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--od-ink);
+            margin-top: 22px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+
+            font-family:
+                "Segoe UI Semibold",
+                "Segoe UI",
+                "Inter",
+                sans-serif;
+
+            text-shadow:
+                0 1px 0
+                rgba(255,255,255,.85),
+                0 -1px 0
+                rgba(16,32,51,.15);
+
+            border-bottom:
+                2px solid var(--od-accent);
+
+            box-shadow:
+                0 1px 0
+                rgba(255,255,255,.9);
+
+        }
+
+
+        /* =====================================================
+           KPI CARDS (raised 3D style)
+           ===================================================== */
+
+        .kpi-card {
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #ffffff 0%,
+                    #eaf6ff 40%,
+                    #cde3f5 100%
+                );
+
+            border:
+                1px solid var(--od-line);
+
+            border-radius: 10px;
+
+            padding:
+                16px 16px;
+
+            min-height: 125px;
+
+            box-shadow:
+                0 2px 0
+                rgba(255,255,255,1)
+                inset,
+
+                0 -3px 4px
+                rgba(16,48,82,.16)
+                inset,
+
+                0 1px 0
+                #ffffff,
+
+                0 4px 0
+                #93b8d6,
+
+                0 18px 32px
+                rgba(16,48,82,.26);
+
+            transition:
+                transform .12s ease,
+                box-shadow .12s ease;
+
+        }
+
+
+        .kpi-card:hover {
+
+            transform:
+                translateY(-3px);
+
+            box-shadow:
+                0 2px 0
+                rgba(255,255,255,1)
+                inset,
+
+                0 -3px 4px
+                rgba(16,48,82,.16)
+                inset,
+
+                0 1px 0
+                #ffffff,
+
+                0 6px 0
+                #93b8d6,
+
+                0 22px 36px
+                rgba(16,48,82,.30);
+
+        }
+
+
+        .kpi-title {
+
+            font-size: 12px;
+            color: var(--od-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+
+            text-shadow:
+                0 1px 0
+                rgba(255,255,255,.9);
+
+        }
+
+
+        .kpi-value {
+
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--od-ink);
+            margin-top: 8px;
+
+            text-shadow:
+                0 1px 0
+                rgba(255,255,255,.9),
+
+                0 2px 3px
+                rgba(16,48,82,.18);
+
+        }
+
+
+        .kpi-small {
+
+            font-size: 11px;
+            color: var(--od-muted);
+            margin-top: 5px;
+            font-weight: 600;
+
+        }
+
+
+        /* =====================================================
+           SIDEBAR — LIGHT ELEGANT THEME
+           ===================================================== */
+
+        section[data-testid="stSidebar"] {
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #eaf3fb 0%,
+                    #dcebf7 100%
+                );
+
+            border-right:
+                1px solid var(--od-line);
+
+        }
+
+
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] label {
+
+            color: var(--od-ink) !important;
+
+        }
+
+
+        /* =====================================================
+           INPUTS — TEXT / DATE / SELECT / MULTISELECT
+           ===================================================== */
+
+        .stTextInput input,
+        .stTextArea textarea,
+        [data-baseweb="select"] > div,
+        [data-testid="stDateInput"] input {
+
+            border:
+                1px solid #8fabc4 !important;
+
+            border-radius: 9px !important;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #e4eff8 0%,
+                    #ffffff 26%
+                ) !important;
+
+            box-shadow:
+                inset 0 3px 6px
+                rgba(16,32,51,.26),
+
+                inset 0 -2px 0
+                rgba(255,255,255,.95),
+
+                0 1px 0
+                rgba(255,255,255,.9) !important;
+
+            font-family:
+                "Segoe UI",
+                "Aptos",
+                "Calibri",
+                sans-serif;
+
+            font-weight: 700;
+
+            color: var(--od-ink) !important;
+
+        }
+
+
+        .stTextInput input:focus,
+        .stTextArea textarea:focus,
+        [data-baseweb="select"] > div:focus-within {
+
+            border-color:
+                var(--od-accent) !important;
+
+            box-shadow:
+                inset 0 3px 7px
+                rgba(16,32,51,.32),
+
+                inset 0 -2px 0
+                rgba(255,255,255,.95),
+
+                0 0 0 3px
+                rgba(0,166,200,.25) !important;
+
+        }
+
+
+        /* =====================================================
+           BUTTONS
+           ===================================================== */
+
+        .stButton > button,
+        .stDownloadButton > button {
+
+            border-radius: 7px;
+
+            border:
+                1px solid #7fa5c3;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #ffffff 0%,
+                    #d9f1ff 52%,
+                    #bfdff2 100%
+                );
+
+            color: var(--od-ink);
+
+            font-weight: 700;
+
+            box-shadow:
+                inset 0 1px 0
+                rgba(255,255,255,.98),
+
+                inset 0 -2px 0
+                rgba(16,48,82,.16),
+
+                0 2px 0
+                #7fa5c3,
+
+                0 8px 16px
+                rgba(16,48,82,.18);
+
+        }
+
+
+        .stButton > button[kind="primary"],
+        .stDownloadButton > button[kind="primary"] {
+
+            border-color:
+                var(--od-accent-dark);
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #35d5ec 0%,
+                    #0d8bac 48%,
+                    #075e7a 100%
+                );
+
+            color: #ffffff;
+
+        }
+
+
+        /* =====================================================
+           CHART PANELS (embossed frame around every Plotly chart)
+           ===================================================== */
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #ffffff 0%,
+                    #eef6fc 100%
+                );
+
+            border:
+                1px solid #92b8d8 !important;
+
+            border-radius: 12px !important;
+
+            box-shadow:
+                0 2px 0
+                rgba(255,255,255,1)
+                inset,
+
+                0 -3px 5px
+                rgba(16,48,82,.14)
+                inset,
+
+                0 1px 0
+                #ffffff,
+
+                0 4px 0
+                #93b8d6,
+
+                0 14px 26px
+                rgba(16,48,82,.22);
+
+            padding: 6px;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        /* =====================================================
+           DATAFRAME PANELS
+           ===================================================== */
+
+        div[data-testid="stDataFrame"] {
+
+            border:
+                1px solid #92b8d8;
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 2px 0
+                rgba(255,255,255,1)
+                inset,
+
+                0 -3px 5px
+                rgba(16,48,82,.14)
+                inset,
+
+                0 4px 0
+                #93b8d6,
+
+                0 12px 22px
+                rgba(16,48,82,.20);
+
+            overflow: hidden;
+
+        }
+
+
+        [data-testid="stAlert"] {
+
+            border-radius: 9px;
+
+            border:
+                1px solid #a9c6e0;
+
+            box-shadow:
+                inset 0 1px 0
+                rgba(255,255,255,.9),
+
+                0 4px 10px
+                rgba(16,48,82,.12);
+
+        }
+
+
+        hr {
+
+            border-color:
+                #d7e0ea;
+
+            margin-top:
+                10px;
+
+            margin-bottom:
+                10px;
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+apply_elegant_theme()
+
+
+# ============================================================
+# STYLED TABLE RENDERER
+# (same navy/cyan header + embossed cell look as other OD apps)
+# ============================================================
+
+from st_aggrid import AgGrid
+from st_aggrid.grid_options_builder import GridOptionsBuilder
+from st_aggrid.shared import JsCode
+
+
+_grid_custom_css = {
+
+    ".ag-root-wrapper": {
+
+        "border":
+            "1px solid #92b8d8 !important",
+
+        "border-radius":
+            "8px !important",
+
+        "box-shadow":
+            "0 18px 34px rgba(16,48,82,.18), inset 0 1px 0 #ffffff !important",
+
+        "overflow":
+            "hidden !important"
+
+    },
+
+
+    ".ag-header": {
+
+        "background":
+            "linear-gradient(180deg, #0b7795 0%, #102b4e 100%) !important",
+
+        "border-bottom":
+            "2px solid #38d5ec !important"
+
+    },
+
+
+    ".ag-header-cell": {
+
+        "border-right":
+            "1px solid rgba(255,255,255,.22) !important",
+
+        "box-shadow":
+            "inset 2px 2px 0 rgba(255,255,255,.38), inset -2px -2px 3px rgba(0,0,0,.38) !important"
+
+    },
+
+
+    ".ag-header-cell-label": {
+
+        "font-family":
+            "Segoe UI, Aptos, Calibri, sans-serif !important",
+
+        "font-weight":
+            "600 !important",
+
+        "justify-content":
+            "center !important"
+
+    },
+
+
+    ".ag-header-cell-text": {
+
+        "font-family":
+            "Segoe UI, Aptos, Calibri, sans-serif !important",
+
+        "font-weight":
+            "600 !important",
+
+        "color":
+            "#ffffff !important",
+
+        "font-size":
+            "12px !important",
+
+        "text-transform":
+            "uppercase !important",
+
+        "text-shadow":
+            "0 1px 1px rgba(0,0,0,.45) !important"
+
+    },
+
+
+    ".ag-cell": {
+
+        "border-color":
+            "#d7e7f5 !important",
+
+        "border-left":
+            "1px solid rgba(255,255,255,.95) !important",
+
+        "border-top":
+            "1px solid rgba(255,255,255,.92) !important",
+
+        "font-family":
+            "Segoe UI, Aptos, Calibri, sans-serif !important",
+
+        "font-weight":
+            "600 !important",
+
+        "color":
+            "#1f2937 !important",
+
+        "font-size":
+            "13px !important",
+
+        "line-height":
+            "34px !important",
+
+        "padding-left":
+            "9px !important",
+
+        "padding-right":
+            "9px !important",
+
+        "box-shadow":
+            "inset 0 1px 0 rgba(255,255,255,.9), inset 0 -3px 4px rgba(16,48,82,.10) !important",
+
+        "text-shadow":
+            "0 1px 0 rgba(255,255,255,.7) !important"
+
+    },
+
+
+    ".ag-cell-focus": {
+
+        "box-shadow":
+            "inset 0 0 0 2px #38d5ec !important"
+
+    },
+
+
+    ".ag-row-hover": {
+
+        "background-color":
+            "#dcf7ff !important"
+
+    },
+
+
+    ".ag-row-odd": {
+
+        "background-color":
+            "#f4fbff !important"
+
     }
 
-    /* Main title */
-    .main-title {
-        font-size: 32px;
-        font-weight: 800;
-        color: #1f2937;
-        margin-bottom: 0px;
-    }
+}
 
-    .sub-title {
-        font-size: 15px;
-        color: #6b7280;
-        margin-bottom: 20px;
-    }
 
-    /* KPI cards */
-    .kpi-card {
-        background: white;
-        padding: 18px;
-        border-radius: 12px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        min-height: 125px;
-    }
+def render_styled_table(dataframe, height=350, center_columns=None):
+    """
+    Renders a read-only AgGrid table with the same 3D
+    navy/cyan header + embossed-cell theme used across
+    the OD Pakistan apps.
+    """
 
-    .kpi-title {
-        font-size: 14px;
-        color: #6b7280;
-        font-weight: 600;
-    }
+    if dataframe.empty:
 
-    .kpi-value {
-        font-size: 27px;
-        font-weight: 800;
-        color: #111827;
-        margin-top: 8px;
-    }
+        st.dataframe(
+            dataframe,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    .kpi-small {
-        font-size: 12px;
-        color: #9ca3af;
-        margin-top: 5px;
-    }
+        return
 
-    /* Section title */
-    .section-title {
-        font-size: 21px;
-        font-weight: 750;
-        color: #1f2937;
-        margin-top: 20px;
-        margin-bottom: 10px;
-    }
+    gb = GridOptionsBuilder.from_dataframe(dataframe)
 
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #111827;
-    }
+    gb.configure_default_column(
+        resizable=True,
+        sortable=True,
+        filter=True,
+        floatingFilter=False,
+        editable=False,
+        minWidth=60
+    )
 
-    section[data-testid="stSidebar"] * {
-        color: white;
-    }
+    if center_columns:
 
-    /* Divider */
-    hr {
-        margin-top: 10px;
-        margin-bottom: 10px;
-    }
+        center_style_js = JsCode(
+            """
+            function(params) {
+                return { 'textAlign': 'center' };
+            }
+            """
+        )
 
-</style>
-""", unsafe_allow_html=True)
+        for col in center_columns:
+
+            if col in dataframe.columns:
+
+                gb.configure_column(
+                    col,
+                    cellStyle=center_style_js
+                )
+
+    gb.configure_grid_options(
+        rowHeight=34,
+        headerHeight=34,
+        onFirstDataRendered=JsCode(
+            """
+            function(params) {
+                setTimeout(function() {
+                    params.api.autoSizeAllColumns(false);
+                }, 200);
+            }
+            """
+        )
+    )
+
+    grid_options = gb.build()
+
+    AgGrid(
+        dataframe,
+        gridOptions=grid_options,
+        height=height,
+        fit_columns_on_grid_load=False,
+        allow_unsafe_jscode=True,
+        custom_css=_grid_custom_css,
+        enable_enterprise_modules=False
+    )
+
+
+# ============================================================
+# CHART THEME
+# (embossed 3D bar effect + bold navy/cyan fonts on every axis)
+# ============================================================
+
+OD_INK = "#102033"
+OD_MUTED = "#5d6f86"
+OD_ACCENT = "#00a6c8"
+OD_ACCENT_DARK = "#075e7a"
+OD_GOLD = "#d69b2d"
+OD_LINE = "#c4d7eb"
+
+OD_COLORWAY = [
+    "#0d8bac",
+    "#d69b2d",
+    "#5f8ee8",
+    "#38d5ec",
+    "#8a5fd6",
+    "#e8735f",
+    "#4fae7a",
+    "#c95fb0",
+    "#c4a13a",
+    "#3a7fc9"
+]
+
+
+def style_chart(fig, title=None):
+    """
+    Applies the shared OD Pakistan "3D" chart theme:
+    bold embossed axis-title fonts, navy/cyan colorway,
+    beveled bar/marker outlines, and a transparent panel
+    background so the chart sits inside the embossed
+    card wrapper.
+    """
+
+    # --------------------------------------------------------
+    # BEVELED / "3D" LOOK ON BARS
+    # --------------------------------------------------------
+
+    fig.update_traces(
+        marker=dict(
+            line=dict(
+                width=1.2,
+                color="rgba(16,48,82,0.45)"
+            )
+        ),
+        selector=dict(type="bar")
+    )
+
+    fig.for_each_trace(
+        lambda trace: trace.update(
+            marker=dict(
+                line=dict(
+                    width=1.5,
+                    color="#ffffff"
+                )
+            )
+        )
+        if trace.type == "pie"
+        else None
+    )
+
+    # --------------------------------------------------------
+    # COLORWAY
+    # --------------------------------------------------------
+
+    fig.update_layout(
+        colorway=OD_COLORWAY
+    )
+
+    # --------------------------------------------------------
+    # FONTS / BACKGROUND / TITLE
+    # --------------------------------------------------------
+
+    fig.update_layout(
+
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0.55)",
+
+        font=dict(
+            family="Segoe UI, Aptos, Calibri, sans-serif",
+            color=OD_INK,
+            size=13
+        ),
+
+        title=dict(
+            text=title if title else fig.layout.title.text,
+            font=dict(
+                family="Segoe UI Semibold, Segoe UI, sans-serif",
+                color=OD_ACCENT_DARK,
+                size=17
+            ),
+            x=0.02,
+            xanchor="left"
+        ),
+
+        legend=dict(
+            font=dict(
+                family="Segoe UI, Aptos, Calibri, sans-serif",
+                color=OD_INK,
+                size=12
+            ),
+            bgcolor="rgba(255,255,255,0.6)",
+            bordercolor=OD_LINE,
+            borderwidth=1
+        ),
+
+        hoverlabel=dict(
+            bgcolor=OD_ACCENT_DARK,
+            font=dict(
+                family="Segoe UI, Aptos, Calibri, sans-serif",
+                color="#ffffff",
+                size=12
+            ),
+            bordercolor="#38d5ec"
+        ),
+
+        margin=dict(l=40, r=30, t=55, b=40)
+
+    )
+
+    # --------------------------------------------------------
+    # AXIS TITLES — BOLD "RAISED" NAVY, 3D-STYLE GRID
+    # --------------------------------------------------------
+
+    axis_title_font = dict(
+        family="Segoe UI Semibold, Segoe UI, sans-serif",
+        size=14,
+        color=OD_ACCENT_DARK
+    )
+
+    axis_tick_font = dict(
+        family="Segoe UI, Aptos, Calibri, sans-serif",
+        size=11,
+        color=OD_MUTED
+    )
+
+    fig.update_xaxes(
+        title_font=axis_title_font,
+        tickfont=axis_tick_font,
+        showline=True,
+        linewidth=2,
+        linecolor="#8fabc4",
+        gridcolor="rgba(143,171,196,0.25)",
+        zerolinecolor="#8fabc4"
+    )
+
+    fig.update_yaxes(
+        title_font=axis_title_font,
+        tickfont=axis_tick_font,
+        showline=True,
+        linewidth=2,
+        linecolor="#8fabc4",
+        gridcolor="rgba(143,171,196,0.25)",
+        zerolinecolor="#8fabc4"
+    )
+
+    return fig
 
 
 # ============================================================
@@ -317,7 +1173,7 @@ with st.sidebar:
     st.markdown(
         """
         <h2 style="
-            color:white;
+            color:#102033;
             margin-bottom:0px;
         ">
         OD PAKISTAN
@@ -329,8 +1185,9 @@ with st.sidebar:
     st.markdown(
         """
         <p style="
-            color:#9ca3af;
+            color:#5d6f86;
             margin-top:0px;
+            font-weight:600;
         ">
         Supply Dashboard
         </p>
@@ -700,10 +1557,14 @@ fig_daily.update_yaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_daily,
-    use_container_width=True
-)
+style_chart(fig_daily)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_daily,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -752,10 +1613,14 @@ with col1:
         separatethousands=True
     )
 
-    st.plotly_chart(
-        fig_month,
-        use_container_width=True
-    )
+    style_chart(fig_month)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_month,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -795,10 +1660,14 @@ with col2:
         yaxis_title="Quantity"
     )
 
-    st.plotly_chart(
-        fig_month_qty,
-        use_container_width=True
-    )
+    style_chart(fig_month_qty)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_month_qty,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -855,10 +1724,14 @@ with col1:
         separatethousands=True
     )
 
-    st.plotly_chart(
-        fig_branch,
-        use_container_width=True
-    )
+    style_chart(fig_branch)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_branch,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -888,10 +1761,14 @@ with col2:
         yaxis_title="Quantity"
     )
 
-    st.plotly_chart(
-        fig_branch_qty,
-        use_container_width=True
-    )
+    style_chart(fig_branch_qty)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_branch_qty,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -931,10 +1808,14 @@ fig_top_branch.update_xaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_top_branch,
-    use_container_width=True
-)
+style_chart(fig_top_branch)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_top_branch,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1000,10 +1881,14 @@ with col1:
         separatethousands=True
     )
 
-    st.plotly_chart(
-        fig_items_amount,
-        use_container_width=True
-    )
+    style_chart(fig_items_amount)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_items_amount,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1044,10 +1929,14 @@ with col2:
         yaxis_title="Item"
     )
 
-    st.plotly_chart(
-        fig_items_qty,
-        use_container_width=True
-    )
+    style_chart(fig_items_qty)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_items_qty,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1080,10 +1969,14 @@ with col1:
         height=500
     )
 
-    st.plotly_chart(
-        fig_pie,
-        use_container_width=True
-    )
+    style_chart(fig_pie)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_pie,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1125,10 +2018,14 @@ with col2:
         height=500
     )
 
-    st.plotly_chart(
-        fig_uom,
-        use_container_width=True
-    )
+    style_chart(fig_uom)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_uom,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1169,10 +2066,14 @@ fig_scatter.update_yaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_scatter,
-    use_container_width=True
-)
+style_chart(fig_scatter)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_scatter,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1231,10 +2132,14 @@ if not rate_df.empty:
         yaxis_title="Rate"
     )
 
-    st.plotly_chart(
-        fig_rate,
-        use_container_width=True
-    )
+    style_chart(fig_rate)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_rate,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1298,10 +2203,14 @@ fig_weekday.update_yaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_weekday,
-    use_container_width=True
-)
+style_chart(fig_weekday)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_weekday,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1338,10 +2247,14 @@ fig_day.update_yaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_day,
-    use_container_width=True
-)
+style_chart(fig_day)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_day,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1389,10 +2302,14 @@ if not branch_month.empty:
         yaxis_title="Branch"
     )
 
-    st.plotly_chart(
-        fig_heatmap,
-        use_container_width=True
-    )
+    style_chart(fig_heatmap)
+
+    with st.container(border=True):
+
+        st.plotly_chart(
+            fig_heatmap,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -1432,10 +2349,14 @@ fig_cumulative.update_yaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_cumulative,
-    use_container_width=True
-)
+style_chart(fig_cumulative)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_cumulative,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1495,10 +2416,14 @@ fig_invoice.update_xaxes(
     separatethousands=True
 )
 
-st.plotly_chart(
-    fig_invoice,
-    use_container_width=True
-)
+style_chart(fig_invoice)
+
+with st.container(border=True):
+
+    st.plotly_chart(
+        fig_invoice,
+        use_container_width=True
+    )
 
 
 # ============================================================
@@ -1529,10 +2454,10 @@ display_branch.columns = [
     "Invoices"
 ]
 
-st.dataframe(
+render_styled_table(
     display_branch,
-    use_container_width=True,
-    hide_index=True
+    height=350,
+    center_columns=["Branch", "Invoices"]
 )
 
 
@@ -1555,10 +2480,9 @@ display_items.columns = [
     "Quantity"
 ]
 
-st.dataframe(
+render_styled_table(
     display_items,
-    use_container_width=True,
-    hide_index=True
+    height=400
 )
 
 
@@ -1601,11 +2525,10 @@ display_df.columns = [
     "Amount"
 ]
 
-st.dataframe(
+render_styled_table(
     display_df,
-    use_container_width=True,
-    hide_index=True,
-    height=600
+    height=600,
+    center_columns=["ID", "Branch", "Date", "Invoice No", "UOM"]
 )
 
 
