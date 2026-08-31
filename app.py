@@ -4,18 +4,10 @@ import pandas as pd
 from psycopg2.extras import execute_values
 from io import StringIO
 
-from st_aggrid import (
-    AgGrid,
-    GridUpdateMode,
-    DataReturnMode
-)
-
+from st_aggrid import AgGrid, DataReturnMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 from st_aggrid.shared import JsCode
 
-# ============================================================
-# SUPABASE DATABASE CONNECTION
-# ============================================================
 from db import get_engine, get_conn
 
 
@@ -24,100 +16,195 @@ from db import get_engine, get_conn
 # ============================================================
 
 st.set_page_config(
-    page_title="supply_sheet",
+    page_title="OD Pakistan - Supply Sheet",
     layout="wide"
 )
 
 
 # ============================================================
-# FULL WIDTH / MINIMIZE LEFT & RIGHT SPACE
+# PAGE CSS
 # ============================================================
 
-st.markdown("""
-<style>
+st.markdown(
+    """
+    <style>
 
-/* ============================================================
-   MAIN STREAMLIT PAGE
-   ============================================================ */
+    .stApp {
+        background:
+            radial-gradient(
+                circle at 12% 8%,
+                rgba(0,166,200,.16),
+                transparent 28%
+            ),
+            radial-gradient(
+                circle at 86% 6%,
+                rgba(69,94,181,.14),
+                transparent 26%
+            ),
+            linear-gradient(
+                180deg,
+                #f6fbff 0%,
+                #eaf3fb 48%,
+                #f7f9fc 100%
+            );
 
-.stAppViewContainer .main .block-container {
-    max-width: 100% !important;
-    width: 95% !important;
-    padding-left: 0.15rem !important;
-    padding-right: 0.15rem !important;
-}
+        color:#102033;
 
-/* Main block */
-[data-testid="stMainBlockContainer"] {
-    max-width: 100% !important;
-    width: 95% !important;
-    padding-left: 0.15rem !important;
-    padding-right: 0.15rem !important;
-}
+        font-family:
+            "Segoe UI",
+            "Inter",
+            "Aptos",
+            "Calibri",
+            sans-serif;
+    }
 
-/* Normal Streamlit block */
-.block-container {
-    max-width: 100% !important;
-    width: 95% !important;
-}
+    .block-container {
+        max-width:100% !important;
+        width:95% !important;
+        padding-left:.15rem !important;
+        padding-right:.15rem !important;
+        padding-top:.75rem;
+        padding-bottom:.75rem;
+    }
 
+    iframe[title*="agGrid"] {
+        width:100% !important;
+        max-width:100% !important;
+        height:calc(100vh - 320px) !important;
+        min-height:420px;
+    }
 
-/* ============================================================
-   AG GRID
-   ============================================================ */
+    .ag-root-wrapper {
+        width:100% !important;
+        max-width:100% !important;
+    }
 
-iframe[title*="agGrid"] {
-    width: 100% !important;
-    max-width: 100% !important;
-}
+    .ag-cell {
+        font-size:13px !important;
+    }
 
-.ag-root-wrapper {
-    width: 100% !important;
-    max-width: 100% !important;
-}
+    .ag-header-cell-text {
+        font-size:12px !important;
+    }
 
+    .stTextInput input,
+    .stTextArea textarea {
+        border:1px solid #8fabc4;
+        border-radius:9px;
 
-/* ============================================================
-   TABLE FONT
-   ============================================================ */
+        background:
+            linear-gradient(
+                180deg,
+                #e4eff8 0%,
+                #ffffff 26%
+            );
 
-.ag-cell {
-    font-size: 12px !important;
-}
+        box-shadow:
+            inset 0 3px 6px rgba(16,32,51,.26),
+            inset 0 -2px 0 rgba(255,255,255,.95),
+            0 1px 0 rgba(255,255,255,.9);
 
-.ag-header-cell-text {
-    font-size: 12px !important;
-}
+        font-family:
+            "Segoe UI",
+            "Aptos",
+            "Calibri",
+            sans-serif;
 
+        font-weight:600;
+        color:#102033;
+    }
 
-/* ============================================================
-   SEARCH INPUT
-   ============================================================ */
+    .stTextInput input:focus,
+    .stTextArea textarea:focus {
+        border-color:#00a6c8;
 
-.stTextInput {
-    width: 100% !important;
-}
+        box-shadow:
+            inset 0 3px 7px rgba(16,32,51,.32),
+            inset 0 -2px 0 rgba(255,255,255,.95),
+            0 0 0 3px rgba(0,166,200,.25);
+    }
 
+    .stButton > button,
+    .stDownloadButton > button {
+        border-radius:7px;
+        border:1px solid #7fa5c3;
 
-/* ============================================================
-   REMOVE EXTRA DATAFRAME SPACE
-   ============================================================ */
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                #d9f1ff 52%,
+                #bfdff2 100%
+            );
 
-div[data-testid="stDataFrame"] {
-    width: 100% !important;
-}
+        color:#102033;
+        font-weight:700;
 
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.98),
+            inset 0 -2px 0 rgba(16,48,82,.16),
+            0 2px 0 #7fa5c3,
+            0 8px 16px rgba(16,48,82,.18);
+    }
 
-/* ============================================================
-   AG GRID SCROLLBAR
-   ============================================================ */
+    .stButton > button[kind="primary"] {
+        border-color:#075e7a;
 
-.ag-body-horizontal-scroll {
-    height: 14px !important;
-}
+        background:
+            linear-gradient(
+                180deg,
+                #35d5ec 0%,
+                #0d8bac 48%,
+                #075e7a 100%
+            );
 
-</style>
-""", unsafe_allow_html=True)
+        color:#ffffff;
+    }
+
+    [data-testid="stExpander"] {
+        border:1px solid #92b8d8 !important;
+        border-radius:10px !important;
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                #eef6fc 100%
+            ) !important;
+
+        box-shadow:
+            0 2px 0 rgba(255,255,255,1) inset,
+            0 -3px 5px rgba(16,48,82,.14) inset,
+            0 4px 0 #93b8d6,
+            0 14px 26px rgba(16,48,82,.22) !important;
+
+        overflow:hidden;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border:1px solid #92b8d8;
+        border-radius:8px;
+
+        box-shadow:
+            0 2px 0 rgba(255,255,255,1) inset,
+            0 -3px 5px rgba(16,48,82,.14) inset,
+            0 4px 0 #93b8d6,
+            0 12px 22px rgba(16,48,82,.20);
+
+        overflow:hidden;
+    }
+
+    hr {
+        border-color:#d7e0ea;
+        margin-top:.75rem;
+        margin-bottom:.75rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 
 # ============================================================
 # CTRL + S
@@ -169,11 +256,8 @@ def enable_ctrl_s_save():
                             );
 
                         if (saveBtn) {
-
                             saveBtn.click();
-
                         }
-
                     }
 
                 },
@@ -189,519 +273,245 @@ def enable_ctrl_s_save():
 
 
 # ============================================================
-# VISUAL THEME
+# DATABASE COLUMN INFORMATION
 # ============================================================
 
-def apply_elegant_theme():
+@st.cache_data(ttl=30)
+def get_table_columns():
 
-    st.markdown(
-        """
-        <style>
+    conn = get_conn()
 
-        :root {
+    try:
 
-            --od-ink: #102033;
-            --od-muted: #5d6f86;
-            --od-line: #c4d7eb;
-            --od-soft: #f3f8ff;
-            --od-panel: #ffffff;
-            --od-accent: #00a6c8;
-            --od-accent-dark: #075e7a;
-            --od-gold: #d69b2d;
+        cur = conn.cursor()
 
-        }
+        cur.execute(
+            """
+            SELECT
+                column_name,
+                ordinal_position,
+                data_type,
+                is_nullable,
+                is_generated,
+                identity_generation
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'supply_sheet'
+            ORDER BY ordinal_position
+            """
+        )
 
+        rows = cur.fetchall()
 
-        .stApp {
+        cur.close()
 
-            background:
-                radial-gradient(
-                    circle at 12% 8%,
-                    rgba(0, 166, 200, .16),
-                    transparent 28%
-                ),
-                radial-gradient(
-                    circle at 86% 6%,
-                    rgba(69, 94, 181, .14),
-                    transparent 26%
-                ),
-                linear-gradient(
-                    180deg,
-                    #f6fbff 0%,
-                    #eaf3fb 48%,
-                    #f7f9fc 100%
-                );
+    finally:
 
-            color: var(--od-ink);
+        conn.close()
 
-            font-family:
-                "Segoe UI",
-                "Inter",
-                "Aptos",
-                "Calibri",
-                sans-serif;
+    if not rows:
 
-        }
+        raise RuntimeError(
+            "Table 'supply_sheet' was not found "
+            "in the public schema."
+        )
 
+    columns = []
 
-        .block-container {
+    for row in rows:
 
-            padding-top: 0.75rem;
-            padding-bottom: 0.75rem;
+        columns.append(
+            {
+                "name": row[0],
+                "position": row[1],
+                "data_type": row[2],
+                "nullable": row[3],
+                "generated": row[4],
+                "identity": row[5]
+            }
+        )
 
-            max-width: 100%;
+    return columns
 
-        }
 
+# ============================================================
+# READ TABLE STRUCTURE
+# ============================================================
 
-        iframe[title*="agGrid"] {
+try:
 
-            height:
-                calc(100vh - 320px)
-                !important;
+    column_info = get_table_columns()
 
-            min-height: 420px;
+except Exception as e:
 
-        }
-
-
-        h1,
-        h2,
-        h3 {
-
-            font-family:
-                "Segoe UI Semibold",
-                "Segoe UI",
-                "Inter",
-                sans-serif;
-
-            letter-spacing: 0;
-
-            color: var(--od-ink);
-
-            text-shadow:
-                0 1px 0
-                rgba(255,255,255,.85),
-                0 -1px 0
-                rgba(16,32,51,.15);
-
-        }
-
-
-        /* =====================================================
-           METRIC CARDS
-           ===================================================== */
-
-        [data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #ffffff 0%,
-                    #eaf6ff 40%,
-                    #cde3f5 100%
-                );
-
-            border:
-                1px solid var(--od-line);
-
-            border-radius: 10px;
-
-            padding:
-                16px 18px;
-
-            box-shadow:
-                0 2px 0
-                rgba(255,255,255,1)
-                inset,
-
-                0 -3px 4px
-                rgba(16,48,82,.16)
-                inset,
-
-                0 1px 0
-                #ffffff,
-
-                0 4px 0
-                #93b8d6,
-
-                0 18px 32px
-                rgba(16,48,82,.26);
-
-            transform:
-                translateY(0);
-
-            transition:
-                transform .12s ease,
-                box-shadow .12s ease;
-
-        }
-
-
-        [data-testid="stMetric"]:hover {
-
-            transform:
-                translateY(-3px);
-
-            box-shadow:
-                0 2px 0
-                rgba(255,255,255,1)
-                inset,
-
-                0 -3px 4px
-                rgba(16,48,82,.16)
-                inset,
-
-                0 1px 0
-                #ffffff,
-
-                0 6px 0
-                #93b8d6,
-
-                0 22px 36px
-                rgba(16,48,82,.30);
-
-        }
-
-
-        [data-testid="stMetricLabel"] {
-
-            color: var(--od-muted);
-
-            font-weight: 600;
-
-            text-transform: uppercase;
-
-            letter-spacing: .06em;
-
-            text-shadow:
-                0 1px 0
-                rgba(255,255,255,.9);
-
-        }
-
-
-        [data-testid="stMetricValue"] {
-
-            color: var(--od-ink);
-
-            font-weight: 600;
-
-            text-shadow:
-                0 1px 0
-                rgba(255,255,255,.9),
-
-                0 2px 3px
-                rgba(16,48,82,.18);
-
-        }
-
-
-        /* =====================================================
-           SEARCH
-           ===================================================== */
-
-        .stTextInput input,
-        .stTextArea textarea {
-
-            border:
-                1px solid #8fabc4;
-
-            border-radius: 9px;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #e4eff8 0%,
-                    #ffffff 26%
-                );
-
-            box-shadow:
-                inset 0 3px 6px
-                rgba(16,32,51,.26),
-
-                inset 0 -2px 0
-                rgba(255,255,255,.95),
-
-                0 1px 0
-                rgba(255,255,255,.9);
-
-            font-family:
-                "Segoe UI",
-                "Aptos",
-                "Calibri",
-                sans-serif;
-
-            font-weight: 700;
-
-            color: var(--od-ink);
-
-            text-shadow:
-                0 1px 0
-                rgba(255,255,255,.6);
-
-            padding-top: 10px;
-
-            padding-bottom: 10px;
-
-        }
-
-
-        .stTextInput input:focus,
-        .stTextArea textarea:focus {
-
-            border-color:
-                var(--od-accent);
-
-            box-shadow:
-                inset 0 3px 7px
-                rgba(16,32,51,.32),
-
-                inset 0 -2px 0
-                rgba(255,255,255,.95),
-
-                0 0 0 3px
-                rgba(0,166,200,.25);
-
-        }
-
-
-        .stTextInput label,
-        .stTextArea label {
-
-            font-weight: 600;
-
-            color: var(--od-ink);
-
-        }
-
-
-        /* =====================================================
-           BUTTONS
-           ===================================================== */
-
-        .stButton > button,
-        .stDownloadButton > button {
-
-            border-radius: 7px;
-
-            border:
-                1px solid #7fa5c3;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #ffffff 0%,
-                    #d9f1ff 52%,
-                    #bfdff2 100%
-                );
-
-            color: var(--od-ink);
-
-            font-weight: 700;
-
-            box-shadow:
-                inset 0 1px 0
-                rgba(255,255,255,.98),
-
-                inset 0 -2px 0
-                rgba(16,48,82,.16),
-
-                0 2px 0
-                #7fa5c3,
-
-                0 8px 16px
-                rgba(16,48,82,.18);
-
-        }
-
-
-        .stButton > button[kind="primary"] {
-
-            border-color:
-                var(--od-accent-dark);
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #35d5ec 0%,
-                    #0d8bac 48%,
-                    #075e7a 100%
-                );
-
-            color: #ffffff;
-
-        }
-
-
-        .streamlit-expanderHeader {
-
-            font-weight: 600;
-
-            color: var(--od-ink);
-
-            background: #ffffff;
-
-            border-radius: 8px;
-
-        }
-
-
-        /* =====================================================
-           EXPANDER PANEL (Add New Rows / Paste)
-           ===================================================== */
-
-        [data-testid="stExpander"] {
-
-            border:
-                1px solid #92b8d8 !important;
-
-            border-radius:
-                10px !important;
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #ffffff 0%,
-                    #eef6fc 100%
-                ) !important;
-
-            box-shadow:
-                0 2px 0
-                rgba(255,255,255,1)
-                inset,
-
-                0 -3px 5px
-                rgba(16,48,82,.14)
-                inset,
-
-                0 1px 0
-                #ffffff,
-
-                0 4px 0
-                #93b8d6,
-
-                0 14px 26px
-                rgba(16,48,82,.22)
-                !important;
-
-            overflow: hidden;
-
-        }
-
-
-        [data-testid="stExpander"] summary {
-
-            box-shadow:
-                inset 0 -2px 4px
-                rgba(16,48,82,.10);
-
-        }
-
-
-        /* =====================================================
-           CHECKBOX (3D toggle look)
-           ===================================================== */
-
-        [data-testid="stCheckbox"] {
-
-            background:
-                linear-gradient(
-                    180deg,
-                    #ffffff 0%,
-                    #eaf6ff 100%
-                );
-
-            border:
-                1px solid #a9c6e0;
-
-            border-radius: 7px;
-
-            padding:
-                6px 10px;
-
-            box-shadow:
-                inset 0 1px 0
-                rgba(255,255,255,.95),
-
-                inset 0 -2px 0
-                rgba(16,48,82,.12),
-
-                0 2px 0
-                #a9c6e0,
-
-                0 5px 10px
-                rgba(16,48,82,.14);
-
-            display: inline-block;
-
-        }
-
-
-        [data-testid="stCheckbox"] label p {
-
-            font-weight: 600;
-
-            color: var(--od-ink);
-
-        }
-
-
-        /* =====================================================
-           STAGED / SELECTED ROWS PREVIEW TABLE (3D panel)
-           ===================================================== */
-
-        div[data-testid="stDataFrame"] {
-
-            border:
-                1px solid #92b8d8;
-
-            border-radius: 8px;
-
-            box-shadow:
-                0 2px 0
-                rgba(255,255,255,1)
-                inset,
-
-                0 -3px 5px
-                rgba(16,48,82,.14)
-                inset,
-
-                0 4px 0
-                #93b8d6,
-
-                0 12px 22px
-                rgba(16,48,82,.20);
-
-            overflow: hidden;
-
-        }
-
-
-        hr {
-
-            border-color:
-                #d7e0ea;
-
-            margin-top:
-                0.75rem;
-
-            margin-bottom:
-                0.75rem;
-
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
+    st.error(
+        f"Unable to read Supabase table structure: {e}"
     )
+
+    st.stop()
+
+
+all_db_columns = [
+    x["name"]
+    for x in column_info
+]
+
+
+# ============================================================
+# IMPORTANT COLUMN CLASSIFICATION
+#
+# id:
+#     hidden but used for UPDATE / DELETE
+#
+# identity:
+#     hidden internal database columns
+#
+# generated:
+#     VISIBLE, but NOT EDITABLE
+#
+# This is the important correction.
+# ============================================================
+
+hidden_internal_columns = []
+
+generated_columns = []
+
+identity_columns = []
+
+
+for info in column_info:
+
+    col = info["name"]
+
+    # ID must remain hidden
+    if col.lower() == "id":
+
+        hidden_internal_columns.append(col)
+
+        continue
+
+
+    # Identity columns
+    if info["identity"] is not None:
+
+        identity_columns.append(col)
+
+        hidden_internal_columns.append(col)
+
+        continue
+
+
+    # Generated columns such as Amount
+    if info["generated"] == "ALWAYS":
+
+        generated_columns.append(col)
+
+        # DO NOT add generated column to hidden list
+
+
+# ============================================================
+# REMOVE S.NO IF IT EXISTS
+# ============================================================
+
+visible_columns = []
+
+for col in all_db_columns:
+
+    if col.lower() in (
+        "id",
+        "s.no",
+        "s_no",
+        "serial_no",
+        "serial number"
+    ):
+
+        continue
+
+    visible_columns.append(col)
+
+
+# ============================================================
+# FIND COLUMN
+# ============================================================
+
+def find_column_name(columns, names):
+
+    lower_map = {
+        c.lower(): c
+        for c in columns
+    }
+
+    for name in names:
+
+        if name.lower() in lower_map:
+
+            return lower_map[name.lower()]
+
+    return None
+
+
+# ============================================================
+# BARCODE / T.O COLUMN
+# ============================================================
+
+barcode_col = find_column_name(
+    visible_columns,
+    [
+        "barcode",
+        "bar_code",
+        "bar code"
+    ]
+)
+
+
+to_no_col = find_column_name(
+    visible_columns,
+    [
+        "to_no",
+        "to no",
+        "t.o #",
+        "t.o no",
+        "t.o.",
+        "to#",
+        "tono"
+    ]
+)
+
+
+# ============================================================
+# ORDER COLUMNS
+# ============================================================
+
+ordered_columns = []
+
+
+if barcode_col:
+
+    ordered_columns.append(barcode_col)
+
+
+if to_no_col:
+
+    if to_no_col not in ordered_columns:
+
+        ordered_columns.append(to_no_col)
+
+
+for col in visible_columns:
+
+    if col not in ordered_columns:
+
+        ordered_columns.append(col)
+
+
+visible_columns = ordered_columns
 
 
 # ============================================================
 # LOAD DATA
 # ============================================================
 
-@st.cache_data
+@st.cache_data(ttl=30)
 def load_data():
 
     engine = get_engine()
@@ -717,111 +527,144 @@ def load_data():
             conn
         )
 
-
-    # ========================================================
-    # CONVERT DATES TO STRINGS
-    # ========================================================
-
-    for col in df.columns:
-
-        if pd.api.types.is_datetime64_any_dtype(
-            df[col]
-        ):
-
-            df[col] = df[col].dt.strftime(
-                "%Y-%m-%d"
-            )
-
-        elif df[col].dtype == "object":
-
-            non_null = df[col].dropna()
-
-            if (
-                len(non_null)
-                and non_null.apply(
-                    lambda v:
-                    hasattr(v, "isoformat")
-                ).all()
-            ):
-
-                df[col] = df[col].apply(
-                    lambda v:
-                    v.isoformat()
-                    if pd.notna(v)
-                    else v
-                )
-
-
     return df
 
 
+try:
+
+    df = load_data()
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load supply_sheet: {e}"
+    )
+
+    st.stop()
+
+
 # ============================================================
-# FIND NON-INSERTABLE COLUMNS
+# MAKE SURE ALL DATABASE COLUMNS EXIST
 # ============================================================
 
-@st.cache_data
-def get_non_insertable_columns():
+for col in all_db_columns:
 
-    conn = get_conn()
+    if col not in df.columns:
 
-    try:
+        df[col] = None
 
-        cur = conn.cursor()
 
-        cur.execute(
-            """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'supply_sheet'
-              AND
-              (
-                  is_generated = 'ALWAYS'
-                  OR identity_generation IS NOT NULL
-                  OR lower(column_name) = 'id'
-              )
-            """
+# ============================================================
+# INTERNAL COLUMNS THAT MUST REMAIN IN DATAFRAME
+#
+# id remains in dataframe internally.
+# It will be hidden in AgGrid.
+# ============================================================
+
+internal_existing = []
+
+for col in hidden_internal_columns:
+
+    if col in df.columns:
+
+        internal_existing.append(col)
+
+
+# ============================================================
+# FINAL DATAFRAME ORDER
+# ============================================================
+
+df = df[
+    internal_existing
+    +
+    [
+        c
+        for c in visible_columns
+        if c in df.columns
+    ]
+]
+
+
+# ============================================================
+# DATE CONVERSION
+# ============================================================
+
+for col in df.columns:
+
+    if pd.api.types.is_datetime64_any_dtype(
+        df[col]
+    ):
+
+        df[col] = df[col].dt.strftime(
+            "%Y-%m-%d"
         )
 
-        cols = [
-            row[0]
-            for row in cur.fetchall()
-        ]
+    elif df[col].dtype == "object":
 
-        cur.close()
+        non_null = df[col].dropna()
 
-    finally:
+        if len(non_null):
 
-        conn.close()
+            try:
 
+                if non_null.apply(
+                    lambda v:
+                    hasattr(v, "isoformat")
+                ).all():
 
-    return cols
+                    df[col] = df[col].apply(
+                        lambda v:
+                        v.isoformat()
+                        if pd.notna(v)
+                        else v
+                    )
+
+            except Exception:
+
+                pass
 
 
 # ============================================================
-# INITIAL DATA
+# ENTRY COLUMNS
+#
+# Generated columns such as Amount are NOT editable.
 # ============================================================
-
-df = load_data()
-
-non_insertable_cols = (
-    get_non_insertable_columns()
-)
-
 
 entry_columns = [
     c
-    for c in df.columns
-    if c not in non_insertable_cols
+    for c in visible_columns
+    if c not in generated_columns
 ]
 
 
-numeric_entry_cols = [
-    c
-    for c in entry_columns
-    if pd.api.types.is_numeric_dtype(
-        df[c]
-    )
-]
+# ============================================================
+# NUMERIC ENTRY COLUMNS
+# ============================================================
+
+numeric_entry_cols = []
+
+
+for info in column_info:
+
+    col = info["name"]
+
+    if col not in entry_columns:
+
+        continue
+
+    data_type = info["data_type"].lower()
+
+    if data_type in (
+        "smallint",
+        "integer",
+        "bigint",
+        "numeric",
+        "decimal",
+        "real",
+        "double precision"
+    ):
+
+        numeric_entry_cols.append(col)
 
 
 # ============================================================
@@ -831,59 +674,75 @@ numeric_entry_cols = [
 def clean_numeric_value(val):
 
     if val is None:
+
         return None
 
+
     if isinstance(val, float) and pd.isna(val):
+
         return None
+
 
     s = str(val).strip()
 
+
     if s == "":
+
         return None
+
 
     if s.lower() in (
         "nan",
         "none",
         "null"
     ):
+
         return None
 
+
     s = s.replace(",", "")
+
 
     try:
 
         return float(s)
 
-    except ValueError:
+    except (
+        ValueError,
+        TypeError
+    ):
 
         return s
 
 
 # ============================================================
-# NORMALIZE VALUES
+# NORMALIZE VALUE
 # ============================================================
 
 def normalize_value(
     val,
-    is_numeric
+    is_numeric=False
 ):
 
     if val is None:
-        return None
-
-    if isinstance(
-        val,
-        float
-    ) and pd.isna(val):
 
         return None
+
+
+    try:
+
+        if pd.isna(val):
+
+            return None
+
+    except Exception:
+
+        pass
 
 
     if is_numeric:
 
-        cleaned = clean_numeric_value(
-            val
-        )
+        cleaned = clean_numeric_value(val)
 
         if cleaned is None:
 
@@ -902,9 +761,9 @@ def normalize_value(
         return cleaned
 
 
-    s = str(val).strip()
+    value = str(val).strip()
 
-    return s if s else None
+    return value if value else None
 
 
 # ============================================================
@@ -924,8 +783,6 @@ if "new_rows_df" not in st.session_state:
 # TITLE
 # ============================================================
 
-apply_elegant_theme()
-
 st.title(
     "OD Pakistan - Supply Sheet"
 )
@@ -934,20 +791,28 @@ enable_ctrl_s_save()
 
 
 # ============================================================
-# ADD NEW ROWS
+# DATA ENTRY
 # ============================================================
 
 with st.expander(
-    "Data Entry — Paste From Excel Here - Ignore Heading, ID & Amount - Take Care of Order and Sequence of Column",
+    "Data Entry — Paste From Excel Here",
     expanded=False
 ):
+
+    st.caption(
+        "Paste data in this exact order: "
+        +
+        " → ".join(entry_columns)
+    )
+
 
     pasted_text = st.text_area(
         "Paste Excel data here",
         height=180,
         key="paste_box",
-        placeholder=
+        placeholder=(
             "Copy rows from Excel and paste here..."
+        )
     )
 
 
@@ -1000,29 +865,37 @@ with st.expander(
             try:
 
                 parsed = pd.read_csv(
-                    StringIO(
-                        pasted_text
-                    ),
+                    StringIO(pasted_text),
                     sep="\t",
                     header=None,
                     dtype=str
                 )
 
 
-                # Too many columns
+                parsed = parsed.dropna(
+                    how="all"
+                )
+
 
                 if (
                     parsed.shape[1]
                     > len(entry_columns)
                 ):
 
+                    st.warning(
+                        f"Excel contains "
+                        f"{parsed.shape[1]} columns, "
+                        f"but only "
+                        f"{len(entry_columns)} "
+                        f"input columns are required. "
+                        f"Extra columns were ignored."
+                    )
+
                     parsed = parsed.iloc[
                         :,
                         :len(entry_columns)
                     ]
 
-
-                # Too few columns
 
                 elif (
                     parsed.shape[1]
@@ -1034,30 +907,26 @@ with st.expander(
                         - parsed.shape[1]
                     )
 
-                    for _ in range(
-                        missing
-                    ):
+                    for _ in range(missing):
 
                         parsed[
                             parsed.shape[1]
                         ] = None
 
 
-                parsed.columns = (
-                    entry_columns
-                )
+                parsed.columns = entry_columns
 
-
-                # Clean numeric columns
 
                 for col in numeric_entry_cols:
 
-                    parsed[col] = (
-                        parsed[col]
-                        .apply(
-                            clean_numeric_value
+                    if col in parsed.columns:
+
+                        parsed[col] = (
+                            parsed[col]
+                            .apply(
+                                clean_numeric_value
+                            )
                         )
-                    )
 
 
                 if append_mode:
@@ -1117,7 +986,7 @@ st.divider()
 
 
 # ============================================================
-# MAIN SEARCH
+# QUICK SEARCH
 # ============================================================
 
 search = st.text_input(
@@ -1127,10 +996,6 @@ search = st.text_input(
 
 view_df = df.copy()
 
-
-# ============================================================
-# QUICK SEARCH
-# ============================================================
 
 if search:
 
@@ -1158,18 +1023,18 @@ if search:
 
 
 # ============================================================
-# FIND COLUMN
+# FIND COMMON COLUMNS
 # ============================================================
 
-def _find_default_col(
-    cols,
+def find_by_names(
+    columns,
     exact_names,
     contains=None
 ):
 
     lower_cols = {
         c.lower(): c
-        for c in cols
+        for c in columns
     }
 
 
@@ -1177,19 +1042,14 @@ def _find_default_col(
 
         if name.lower() in lower_cols:
 
-            return lower_cols[
-                name.lower()
-            ]
+            return lower_cols[name.lower()]
 
 
     if contains:
 
-        contains_lower = (
-            contains.lower()
-        )
+        contains_lower = contains.lower()
 
-
-        for c in cols:
+        for c in columns:
 
             if contains_lower in c.lower():
 
@@ -1199,18 +1059,14 @@ def _find_default_col(
     return None
 
 
-# ============================================================
-# FIND BRANCH / DATE / DESCRIPTION
-# ============================================================
-
-branch_col = _find_default_col(
+branch_col = find_by_names(
     list(view_df.columns),
     ["branch"],
     "branch"
 )
 
 
-date_col = _find_default_col(
+date_col = find_by_names(
     list(view_df.columns),
     [
         "date",
@@ -1223,7 +1079,7 @@ date_col = _find_default_col(
 )
 
 
-description_col = _find_default_col(
+description_col = find_by_names(
     list(view_df.columns),
     [
         "description",
@@ -1235,11 +1091,7 @@ description_col = _find_default_col(
 )
 
 
-# ============================================================
-# FIND TOTAL COLUMNS
-# ============================================================
-
-qty_col = _find_default_col(
+qty_col = find_by_names(
     list(view_df.columns),
     [
         "quantity",
@@ -1249,7 +1101,7 @@ qty_col = _find_default_col(
 )
 
 
-amount_col = _find_default_col(
+amount_col = find_by_names(
     list(view_df.columns),
     ["amount"],
     "amount"
@@ -1260,35 +1112,30 @@ amount_col = _find_default_col(
 # DEFAULT SORT
 # ============================================================
 
-_default_sort_cols = []
+sort_columns = []
 
 
-for _col in [
+for col in [
     branch_col,
     date_col,
     description_col
 ]:
 
     if (
-        _col
-        and _col not in _default_sort_cols
+        col
+        and col in view_df.columns
+        and col not in sort_columns
     ):
 
-        _default_sort_cols.append(
-            _col
-        )
+        sort_columns.append(col)
 
 
-# ============================================================
-# SORT
-# ============================================================
-
-if _default_sort_cols:
+if sort_columns:
 
     view_df = (
         view_df
         .sort_values(
-            by=_default_sort_cols,
+            by=sort_columns,
             ascending=True,
             na_position="last"
         )
@@ -1297,41 +1144,11 @@ if _default_sort_cols:
 
 
 # ============================================================
-# COMPACT SUMMARY CARDS
-# ============================================================
-
-if qty_col:
-    qty = (
-        pd.to_numeric(
-            view_df[qty_col],
-            errors="coerce"
-        )
-        .fillna(0)
-        .sum()
-    )
-else:
-    qty = 0
-
-if amount_col:
-    amt = (
-        pd.to_numeric(
-            view_df[amount_col],
-            errors="coerce"
-        )
-        .fillna(0)
-        .sum()
-    )
-else:
-    amt = 0
-
-
-import textwrap
-
-# ============================================================
 # SUMMARY VALUES
 # ============================================================
 
 if qty_col:
+
     qty = (
         pd.to_numeric(
             view_df[qty_col],
@@ -1340,10 +1157,14 @@ if qty_col:
         .fillna(0)
         .sum()
     )
+
 else:
+
     qty = 0
 
+
 if amount_col:
+
     amt = (
         pd.to_numeric(
             view_df[amount_col],
@@ -1352,161 +1173,129 @@ if amount_col:
         .fillna(0)
         .sum()
     )
-else:
-    amt = 0
 
-# ============================================================
-# COMPACT 3D SUMMARY CARDS
-# SAME LIGHT-BLUE STYLE AS YOUR INPUT CELLS
-# ============================================================
-
-if qty_col:
-    qty = (
-        pd.to_numeric(
-            view_df[qty_col],
-            errors="coerce"
-        )
-        .fillna(0)
-        .sum()
-    )
 else:
-    qty = 0
 
-if amount_col:
-    amt = (
-        pd.to_numeric(
-            view_df[amount_col],
-            errors="coerce"
-        )
-        .fillna(0)
-        .sum()
-    )
-else:
     amt = 0
 
 
 # ============================================================
-# COMMON CARD STYLE
+# SUMMARY CARDS
 # ============================================================
 
 card_style = """
-    height:58px;
-    padding:5px 10px;
-    box-sizing:border-box;
-    text-align:center;
+height:58px;
+padding:5px 10px;
+box-sizing:border-box;
+text-align:center;
 
-    border:1px solid #8fabc4;
-    border-radius:9px;
+border:1px solid #8fabc4;
+border-radius:9px;
 
-    background:linear-gradient(
-        180deg,
-        #e4eff8 0%,
-        #ffffff 26%
-    );
+background:
+linear-gradient(
+    180deg,
+    #e4eff8 0%,
+    #ffffff 26%
+);
 
-    box-shadow:
-        inset 0 3px 6px rgba(16,32,51,.26),
-        inset 0 -2px 0 rgba(255,255,255,.95),
-        0 1px 0 rgba(255,255,255,.9);
+box-shadow:
+inset 0 3px 6px rgba(16,32,51,.26),
+inset 0 -2px 0 rgba(255,255,255,.95),
+0 1px 0 rgba(255,255,255,.9);
 
-    font-family:"Segoe UI","Aptos","Calibri",sans-serif;
+font-family:
+"Segoe UI",
+"Aptos",
+"Calibri",
+sans-serif;
 """
 
 
 col1, col2, col3 = st.columns(3)
 
 
-# ============================================================
-# RECORDS
-# ============================================================
-
 with col1:
-    st.html(f"""
-    <div style="{card_style}">
 
-        <div style="
-            font-size:11px;
-            font-weight:600;
-            color:#30465a;
-            line-height:15px;
-        ">
-            Records
+    st.html(
+        f"""
+        <div style="{card_style}">
+            <div style="
+                font-size:11px;
+                font-weight:600;
+                color:#30465a;
+                line-height:15px;
+            ">
+                Records
+            </div>
+
+            <div style="
+                font-size:20px;
+                font-weight:700;
+                color:#102033;
+                line-height:25px;
+            ">
+                {len(view_df):,}
+            </div>
         </div>
+        """
+    )
 
-        <div style="
-            font-size:20px;
-            font-weight:700;
-            color:#102033;
-            line-height:25px;
-            text-shadow:0 1px 0 rgba(255,255,255,.6);
-        ">
-            {len(view_df):,}
-        </div>
-
-    </div>
-    """)
-
-
-# ============================================================
-# TOTAL QUANTITY
-# ============================================================
 
 with col2:
-    st.html(f"""
-    <div style="{card_style}">
 
-        <div style="
-            font-size:11px;
-            font-weight:600;
-            color:#30465a;
-            line-height:15px;
-        ">
-            Total Quantity
+    st.html(
+        f"""
+        <div style="{card_style}">
+            <div style="
+                font-size:11px;
+                font-weight:600;
+                color:#30465a;
+                line-height:15px;
+            ">
+                Total Quantity
+            </div>
+
+            <div style="
+                font-size:20px;
+                font-weight:700;
+                color:#102033;
+                line-height:25px;
+            ">
+                {qty:,.2f}
+            </div>
         </div>
+        """
+    )
 
-        <div style="
-            font-size:20px;
-            font-weight:700;
-            color:#102033;
-            line-height:25px;
-            text-shadow:0 1px 0 rgba(255,255,255,.6);
-        ">
-            {qty:,.2f}
-        </div>
-
-    </div>
-    """)
-
-
-# ============================================================
-# TOTAL AMOUNT
-# ============================================================
 
 with col3:
-    st.html(f"""
-    <div style="{card_style}">
 
-        <div style="
-            font-size:11px;
-            font-weight:600;
-            color:#30465a;
-            line-height:15px;
-        ">
-            Total Amount
+    st.html(
+        f"""
+        <div style="{card_style}">
+            <div style="
+                font-size:11px;
+                font-weight:600;
+                color:#30465a;
+                line-height:15px;
+            ">
+                Total Amount
+            </div>
+
+            <div style="
+                font-size:20px;
+                font-weight:700;
+                color:#102033;
+                line-height:25px;
+            ">
+                {amt:,.2f}
+            </div>
         </div>
+        """
+    )
 
-        <div style="
-            font-size:20px;
-            font-weight:700;
-            color:#102033;
-            line-height:25px;
-            text-shadow:0 1px 0 rgba(255,255,255,.6);
-        ">
-            {amt:,.2f}
-        </div>
 
-    </div>
-    """)
 # ============================================================
 # BUILD DISPLAY DATA WITH TOTALS
 # ============================================================
@@ -1537,19 +1326,13 @@ def build_display_with_totals(
         return out
 
 
-    cols = list(
-        data_df.columns
-    )
+    cols = list(data_df.columns)
 
     out_rows = []
 
     grand_qty = 0.0
     grand_amt = 0.0
 
-
-    # ========================================================
-    # EACH BRANCH
-    # ========================================================
 
     for branch_val, branch_group in (
         data_df.groupby(
@@ -1562,10 +1345,6 @@ def build_display_with_totals(
         branch_qty = 0.0
         branch_amt = 0.0
 
-
-        # ====================================================
-        # GROUP BY DATE
-        # ====================================================
 
         if date_col:
 
@@ -1584,13 +1363,7 @@ def build_display_with_totals(
             ]
 
 
-        # ====================================================
-        # EACH DATE
-        # ====================================================
-
         for date_val, date_group in date_groups:
-
-            # Data rows
 
             for _, r in date_group.iterrows():
 
@@ -1602,8 +1375,6 @@ def build_display_with_totals(
                     row_dict
                 )
 
-
-            # Day quantity
 
             if qty_col:
 
@@ -1620,8 +1391,6 @@ def build_display_with_totals(
 
                 day_qty = 0.0
 
-
-            # Day amount
 
             if amount_col:
 
@@ -1643,7 +1412,7 @@ def build_display_with_totals(
             branch_amt += day_amt
 
 
-            # Day total
+            # DAY TOTAL
 
             day_total_row = {
                 c: None
@@ -1653,34 +1422,24 @@ def build_display_with_totals(
 
             if date_col:
 
-                day_total_row[
-                    date_col
-                ] = "Day Total"
+                day_total_row[date_col] = "Day Total"
 
             else:
 
-                day_total_row[
-                    branch_col
-                ] = "Day Total"
+                day_total_row[branch_col] = "Day Total"
 
 
             if qty_col:
 
-                day_total_row[
-                    qty_col
-                ] = day_qty
+                day_total_row[qty_col] = day_qty
 
 
             if amount_col:
 
-                day_total_row[
-                    amount_col
-                ] = day_amt
+                day_total_row[amount_col] = day_amt
 
 
-            day_total_row[
-                "_row_type"
-            ] = "daytotal"
+            day_total_row["_row_type"] = "daytotal"
 
 
             out_rows.append(
@@ -1688,17 +1447,11 @@ def build_display_with_totals(
             )
 
 
-        # ====================================================
-        # GRAND ACCUMULATION
-        # ====================================================
-
         grand_qty += branch_qty
         grand_amt += branch_amt
 
 
-        # ====================================================
         # BRANCH TOTAL
-        # ====================================================
 
         branch_total_row = {
             c: None
@@ -1743,27 +1496,21 @@ def build_display_with_totals(
         )
 
 
-        # Blank row
+        # BLANK SEPARATOR
 
-        blank_branch_row = {
+        blank_row = {
             c: None
             for c in cols
         }
 
-
-        blank_branch_row[
-            "_row_type"
-        ] = "blank"
-
+        blank_row["_row_type"] = "blank"
 
         out_rows.append(
-            blank_branch_row
+            blank_row
         )
 
 
-    # ========================================================
     # GRAND TOTAL
-    # ========================================================
 
     grand_row = {
         c: None
@@ -1800,9 +1547,7 @@ def build_display_with_totals(
     )
 
 
-    return pd.DataFrame(
-        out_rows
-    )
+    return pd.DataFrame(out_rows)
 
 
 # ============================================================
@@ -1819,6 +1564,41 @@ display_df = build_display_with_totals(
 
 
 # ============================================================
+# DISPLAY COLUMN ORDER
+#
+# id stays internally.
+# Amount stays visible.
+# S.No is never created.
+# ============================================================
+
+display_columns = []
+
+
+for col in internal_existing:
+
+    if col in display_df.columns:
+
+        display_columns.append(col)
+
+
+for col in visible_columns:
+
+    if col in display_df.columns:
+
+        display_columns.append(col)
+
+
+if "_row_type" in display_df.columns:
+
+    display_columns.append("_row_type")
+
+
+display_df = display_df[
+    display_columns
+]
+
+
+# ============================================================
 # AG GRID
 # ============================================================
 
@@ -1828,7 +1608,7 @@ gb = GridOptionsBuilder.from_dataframe(
 
 
 # ============================================================
-# ROW EDITABILITY
+# ONLY REAL DATA ROWS EDITABLE
 # ============================================================
 
 row_editable_js = JsCode(
@@ -1857,90 +1637,58 @@ row_style_js = JsCode(
             return {};
         }
 
-
         if (
             params.data._row_type === 'daytotal'
         ) {
 
             return {
-
                 'fontWeight': 'bold',
-
                 'backgroundColor': '#e5fbff',
-
                 'color': '#075e7a',
-
-                'borderTop':
-                    '1px solid #8fd8e5',
-
-                'borderBottom':
-                    '1px solid #bdeaf1'
-
+                'borderTop': '1px solid #8fd8e5',
+                'borderBottom': '1px solid #bdeaf1'
             };
 
         }
-
 
         if (
             params.data._row_type === 'subtotal'
         ) {
 
             return {
-
                 'fontWeight': 'bold',
-
                 'backgroundColor': '#e8f0ff',
-
                 'color': '#17366d',
-
-                'borderTop':
-                    '2px solid #5f8ee8',
-
-                'borderBottom':
-                    '2px solid #5f8ee8'
-
+                'borderTop': '2px solid #5f8ee8',
+                'borderBottom': '2px solid #5f8ee8'
             };
 
         }
-
 
         if (
             params.data._row_type === 'grandtotal'
         ) {
 
             return {
-
                 'fontWeight': 'bold',
-
                 'backgroundColor': '#fff2cc',
-
                 'color': '#5c3d00',
-
-                'borderTop':
-                    '3px solid #d69b2d',
-
-                'borderBottom':
-                    '4px double #d69b2d'
-
+                'borderTop': '3px solid #d69b2d',
+                'borderBottom': '4px double #d69b2d'
             };
 
         }
-
 
         if (
             params.data._row_type === 'blank'
         ) {
 
             return {
-
                 'height': '12px',
-
                 'backgroundColor': '#f8fafc'
-
             };
 
         }
-
 
         if (
             params.node &&
@@ -1948,20 +1696,13 @@ row_style_js = JsCode(
         ) {
 
             return {
-
-                'backgroundColor':
-                    '#f4fbff'
-
+                'backgroundColor': '#f4fbff'
             };
 
         }
 
-
         return {
-
-            'backgroundColor':
-                '#ffffff'
-
+            'backgroundColor': '#ffffff'
         };
 
     }
@@ -1977,55 +1718,30 @@ cell_style_js = JsCode(
     """
     function(params) {
 
-        if (
-            params.data &&
-            params.data._row_type === 'data'
-        ) {
-
-            return {
-
-                'fontFamily':
-                    'Segoe UI, Aptos, Calibri, sans-serif',
-
-                'fontWeight':
-                    '600',
-
-                'color':
-                    '#1f2937',
-
-                'borderRight':
-                    '1px solid #b9d2e8',
-
-                'borderBottom':
-                    '1px solid #b9d2e8',
-
-                'boxShadow':
-                    'inset 0 1px 0 rgba(255,255,255,.9), ' +
-                    'inset 0 -3px 4px rgba(16,48,82,.16), ' +
-                    'inset -2px 0 3px rgba(16,48,82,.08)',
-
-                'textShadow':
-                    '0 1px 0 rgba(255,255,255,.7)'
-
-            };
-
-        }
-
-
         return {
 
             'fontFamily':
                 'Segoe UI, Aptos, Calibri, sans-serif',
 
+            'fontWeight':
+                '600',
+
+            'color':
+                '#1f2937',
+
             'borderRight':
-                '1px solid #aac6e0',
+                '1px solid #b9d2e8',
 
             'borderBottom':
-                '1px solid #aac6e0',
+                '1px solid #b9d2e8',
 
             'boxShadow':
-                'inset 0 1px 0 rgba(255,255,255,.85), ' +
-                'inset 0 -2px 3px rgba(16,48,82,.12)'
+                'inset 0 1px 0 rgba(255,255,255,.9), ' +
+                'inset 0 -3px 4px rgba(16,48,82,.16), ' +
+                'inset -2px 0 3px rgba(16,48,82,.08)',
+
+            'textShadow':
+                '0 1px 0 rgba(255,255,255,.7)'
 
         };
 
@@ -2055,137 +1771,115 @@ gb.configure_default_column(
     minWidth=50,
 
     filterParams={
-
         "buttons": [
             "reset",
             "apply"
         ],
-
-        "defaultJoinOperator":
-            "AND"
-
+        "defaultJoinOperator": "AND"
     },
 
     wrapText=False,
 
     autoHeight=False
-
 )
 
 
 # ============================================================
-# HIDE INTERNAL ROW TYPE
+# HIDE ROW TYPE
 # ============================================================
 
 gb.configure_column(
     "_row_type",
-    hide=True
+    hide=True,
+    suppressColumnsToolPanel=True
 )
 
 
 # ============================================================
-# DATE COLUMN
+# HIDE ID
 # ============================================================
 
-if (
-    date_col
-    and date_col in display_df.columns
-):
-
-    gb.configure_column(
-
-        date_col,
-
-        cellDataType="text"
-
-    )
-
-
-# ============================================================
-# HIDE DATABASE ID
-# ============================================================
-
-if "id" in display_df.columns:
-
-    gb.configure_column(
-
-        "id",
-
-        hide=True,
-
-        editable=False
-
-    )
-
-
-# ============================================================
-# PROTECT GENERATED / ID COLUMNS
-# ============================================================
-
-for col in non_insertable_cols:
+for col in hidden_internal_columns:
 
     if col in display_df.columns:
 
         gb.configure_column(
-
             col,
-
-            editable=False
-
+            hide=True,
+            editable=False,
+            suppressColumnsToolPanel=True
         )
 
 
 # ============================================================
-# BASE COLUMN WIDTHS
+# GENERATED COLUMNS
+#
+# IMPORTANT:
+# Generated columns remain VISIBLE.
+# They are NOT editable.
+#
+# This is what fixes Amount.
 # ============================================================
 
-for col in display_df.columns:
+for col in generated_columns:
 
-    gb.configure_column(
+    if col in display_df.columns:
 
-        col,
-
-        minWidth=50,
-
-        resizable=True
-
-    )
+        gb.configure_column(
+            col,
+            editable=False,
+            hide=False,
+            suppressColumnsToolPanel=False
+        )
 
 
 # ============================================================
-# FIXED STARTING COLUMN WIDTHS
+# COLUMN WIDTHS
 # ============================================================
 
 column_widths = {
 
-    "Branch": 180,
+    "branch": 140,
+    "Branch": 140,
 
+    "date": 105,
     "Date": 105,
 
+    "inv_no": 115,
     "Inv No": 115,
-
     "Inv #": 115,
 
+    "invoice_no": 120,
+
+    "barcode": 130,
+    "Barcode": 130,
+
+    "to_no": 110,
+    "T.O #": 110,
+
+    "description": 280,
     "Description": 280,
 
+    "item_name": 280,
     "Item name": 280,
 
+    "uom": 70,
     "UOM": 70,
-
     "UoM": 70,
 
+    "quantity": 95,
     "Quantity": 95,
-
+    "qty": 95,
     "Qty": 95,
 
+    "rate": 110,
     "Rate": 110,
 
+    "to_rate": 110,
     "T.O Rate": 110,
 
-    "to_rate": 110,
-
+    "amount": 130,
     "Amount": 130
-
 }
 
 
@@ -2194,71 +1888,53 @@ for col, width in column_widths.items():
     if col in display_df.columns:
 
         gb.configure_column(
-
             col,
-
             width=width,
-
             minWidth=50,
-
             resizable=True
-
         )
 
 
 # ============================================================
-# LIMIT VERY LONG TEXT COLUMNS
+# DESCRIPTION WIDTH
 # ============================================================
 
-if "Description" in display_df.columns:
+for col in [
+    "Description",
+    "description",
+    "Item name",
+    "item_name"
+]:
 
-    gb.configure_column(
+    if col in display_df.columns:
 
-        "Description",
-
-        width=280,
-
-        minWidth=150,
-
-        maxWidth=450,
-
-        resizable=True
-
-    )
-
-
-if "Item name" in display_df.columns:
-
-    gb.configure_column(
-
-        "Item name",
-
-        width=280,
-
-        minWidth=150,
-
-        maxWidth=450,
-
-        resizable=True
-
-    )
+        gb.configure_column(
+            col,
+            width=280,
+            minWidth=150,
+            maxWidth=450,
+            resizable=True
+        )
 
 
-if "Branch" in display_df.columns:
+# ============================================================
+# BRANCH WIDTH
+# ============================================================
 
-    gb.configure_column(
+for col in [
+    "Branch",
+    "branch"
+]:
 
-        "Branch",
+    if col in display_df.columns:
 
-        width=140,
-
-        minWidth=100,
-
-        maxWidth=250,
-
-        resizable=True
-
-    )
+        gb.configure_column(
+            col,
+            width=140,
+            minWidth=100,
+            maxWidth=250,
+            resizable=True
+        )
 
 
 # ============================================================
@@ -2269,43 +1945,6 @@ numeric_cell_style_js = JsCode(
     """
     function(params) {
 
-        if (
-            params.data &&
-            params.data._row_type === 'data'
-        ) {
-
-            return {
-
-                'textAlign': 'center',
-
-                'fontFamily':
-                    'Segoe UI, Aptos, Calibri, sans-serif',
-
-                'fontWeight':
-                    '600',
-
-                'color':
-                    '#1f2937',
-
-                'borderRight':
-                    '1px solid #b9d2e8',
-
-                'borderBottom':
-                    '1px solid #b9d2e8',
-
-                'boxShadow':
-                    'inset 0 1px 0 rgba(255,255,255,.9), ' +
-                    'inset 0 -3px 4px rgba(16,48,82,.16), ' +
-                    'inset -2px 0 3px rgba(16,48,82,.08)',
-
-                'textShadow':
-                    '0 1px 0 rgba(255,255,255,.7)'
-
-            };
-
-        }
-
-
         return {
 
             'textAlign':
@@ -2314,9 +1953,22 @@ numeric_cell_style_js = JsCode(
             'fontFamily':
                 'Segoe UI, Aptos, Calibri, sans-serif',
 
+            'fontWeight':
+                '600',
+
+            'color':
+                '#1f2937',
+
+            'borderRight':
+                '1px solid #b9d2e8',
+
+            'borderBottom':
+                '1px solid #b9d2e8',
+
             'boxShadow':
-                'inset 0 1px 0 rgba(255,255,255,.85), ' +
-                'inset 0 -2px 3px rgba(16,48,82,.12)'
+                'inset 0 1px 0 rgba(255,255,255,.9), ' +
+                'inset 0 -3px 4px rgba(16,48,82,.16), ' +
+                'inset -2px 0 3px rgba(16,48,82,.08)'
 
         };
 
@@ -2325,28 +1977,33 @@ numeric_cell_style_js = JsCode(
 )
 
 
+# ============================================================
+# NUMERIC STYLE
+# ============================================================
+
 for col in [
     "quantity",
+    "Quantity",
     "qty",
+    "Qty",
     "rate",
+    "Rate",
     "to_rate",
-    "amount"
+    "T.O Rate",
+    "amount",
+    "Amount"
 ]:
 
     if col in display_df.columns:
 
         gb.configure_column(
-
             col,
-
-            cellStyle=
-                numeric_cell_style_js
-
+            cellStyle=numeric_cell_style_js
         )
 
 
 # ============================================================
-# NUMBER FORMATTERS
+# DECIMAL FORMATTER
 # ============================================================
 
 decimal_value_formatter_js = JsCode(
@@ -2354,7 +2011,6 @@ decimal_value_formatter_js = JsCode(
     function(params) {
 
         var v = params.value;
-
 
         if (
             v === null ||
@@ -2366,9 +2022,7 @@ decimal_value_formatter_js = JsCode(
 
         }
 
-
         var num = Number(v);
-
 
         if (isNaN(num)) {
 
@@ -2376,13 +2030,11 @@ decimal_value_formatter_js = JsCode(
 
         }
 
-
         if (num === 0) {
 
             return '-';
 
         }
-
 
         return num.toLocaleString(
             'en-US',
@@ -2397,12 +2049,15 @@ decimal_value_formatter_js = JsCode(
 )
 
 
+# ============================================================
+# AMOUNT FORMATTER
+# ============================================================
+
 amount_value_formatter_js = JsCode(
     """
     function(params) {
 
         var v = params.value;
-
 
         if (
             v === null ||
@@ -2414,9 +2069,7 @@ amount_value_formatter_js = JsCode(
 
         }
 
-
         var num = Number(v);
-
 
         if (isNaN(num)) {
 
@@ -2424,13 +2077,11 @@ amount_value_formatter_js = JsCode(
 
         }
 
-
         if (num === 0) {
 
             return '-';
 
         }
-
 
         return num.toLocaleString(
             'en-US',
@@ -2445,35 +2096,47 @@ amount_value_formatter_js = JsCode(
 )
 
 
+# ============================================================
+# APPLY NUMBER FORMAT
+# ============================================================
+
 for col in [
     "quantity",
+    "Quantity",
     "qty",
+    "Qty",
     "rate",
-    "to_rate"
+    "Rate",
+    "to_rate",
+    "T.O Rate"
 ]:
 
     if col in display_df.columns:
 
         gb.configure_column(
-
             col,
-
             valueFormatter=
                 decimal_value_formatter_js
-
         )
 
 
-if "amount" in display_df.columns:
+# ============================================================
+# AMOUNT FORMAT
+# ============================================================
 
-    gb.configure_column(
+for col in [
+    "amount",
+    "Amount"
+]:
 
-        "amount",
+    if col in display_df.columns:
 
-        valueFormatter=
-            amount_value_formatter_js
-
-    )
+        gb.configure_column(
+            col,
+            valueFormatter=
+                amount_value_formatter_js,
+            editable=False
+        )
 
 
 # ============================================================
@@ -2489,7 +2152,6 @@ gb.configure_selection(
     header_checkbox=True,
 
     suppressRowDeselection=False
-
 )
 
 
@@ -2502,7 +2164,6 @@ gb.configure_side_bar(
     filters_panel=True,
 
     columns_panel=True
-
 )
 
 
@@ -2532,19 +2193,6 @@ gb.configure_grid_options(
 
     suppressRowDeselection=False,
 
-
-    # ========================================================
-    # AUTOFIT CONTENT ON INITIAL LOAD
-    # ========================================================
-    #
-    # IMPORTANT:
-    # We use autoSizeColumns()
-    #
-    # We DO NOT use sizeColumnsToFit()
-    #
-    # Therefore the columns can be manually resized.
-    # ========================================================
-
     onFirstDataRendered=JsCode(
         """
         function(params) {
@@ -2553,13 +2201,11 @@ gb.configure_grid_options(
 
                 var allColumnIds = [];
 
-
                 params.api.getColumns().forEach(
                     function(column) {
 
                         var colId =
                             column.getColId();
-
 
                         if (
                             colId !== '_row_type' &&
@@ -2575,19 +2221,16 @@ gb.configure_grid_options(
                     }
                 );
 
-
                 params.api.autoSizeColumns(
                     allColumnIds,
                     false
                 );
-
 
             }, 300);
 
         }
         """
     )
-
 )
 
 
@@ -2599,7 +2242,7 @@ grid_options = gb.build()
 
 
 # ============================================================
-# HEADER / TABLE STYLE
+# GRID CSS
 # ============================================================
 
 grid_custom_css = {
@@ -2613,22 +2256,25 @@ grid_custom_css = {
             "8px !important",
 
         "box-shadow":
-            "0 18px 34px rgba(16,48,82,.18), inset 0 1px 0 #ffffff !important",
+            "0 18px 34px rgba(16,48,82,.18), "
+            "inset 0 1px 0 #ffffff !important",
 
         "overflow":
             "hidden !important"
-
     },
 
 
     ".ag-header": {
 
         "background":
-            "linear-gradient(180deg, #0b7795 0%, #102b4e 100%) !important",
+            "linear-gradient("
+            "180deg, "
+            "#0b7795 0%, "
+            "#102b4e 100%"
+            ") !important",
 
         "border-bottom":
             "2px solid #38d5ec !important"
-
     },
 
 
@@ -2638,8 +2284,8 @@ grid_custom_css = {
             "1px solid rgba(255,255,255,.22) !important",
 
         "box-shadow":
-            "inset 2px 2px 0 rgba(255,255,255,.38), inset -2px -2px 3px rgba(0,0,0,.38) !important"
-
+            "inset 2px 2px 0 rgba(255,255,255,.38), "
+            "inset -2px -2px 3px rgba(0,0,0,.38) !important"
     },
 
 
@@ -2653,7 +2299,6 @@ grid_custom_css = {
 
         "justify-content":
             "center !important"
-
     },
 
 
@@ -2676,7 +2321,6 @@ grid_custom_css = {
 
         "text-shadow":
             "0 1px 1px rgba(0,0,0,.45) !important"
-
     },
 
 
@@ -2702,7 +2346,6 @@ grid_custom_css = {
 
         "padding-right":
             "9px !important"
-
     },
 
 
@@ -2710,7 +2353,6 @@ grid_custom_css = {
 
         "box-shadow":
             "inset 0 0 0 2px #38d5ec !important"
-
     },
 
 
@@ -2718,7 +2360,6 @@ grid_custom_css = {
 
         "background-color":
             "#dcf7ff !important"
-
     },
 
 
@@ -2726,7 +2367,6 @@ grid_custom_css = {
 
         "background-color":
             "#caeff8 !important"
-
     },
 
 
@@ -2740,7 +2380,6 @@ grid_custom_css = {
 
         "box-shadow":
             "inset 0 1px 3px rgba(16,32,51,.18) !important"
-
     },
 
 
@@ -2748,9 +2387,7 @@ grid_custom_css = {
 
         "border-left":
             "1px solid #cbd6e2 !important"
-
     }
-
 }
 
 
@@ -2771,15 +2408,10 @@ grid_response = AgGrid(
     fit_columns_on_grid_load=False,
 
     update_on=[
-
         "cellValueChanged",
-
         "selectionChanged",
-
         "filterChanged",
-
         "sortChanged"
-
     ],
 
     data_return_mode=(
@@ -2791,7 +2423,6 @@ grid_response = AgGrid(
     custom_css=grid_custom_css,
 
     key="main_grid"
-
 )
 
 
@@ -2851,7 +2482,7 @@ elif not isinstance(
 
 
 # ============================================================
-# REMOVE SPECIAL ROWS FROM DELETE SELECTION
+# ONLY REAL DATA ROWS CAN BE DELETED
 # ============================================================
 
 if not selected_rows.empty:
@@ -2869,12 +2500,12 @@ if not selected_rows.empty:
             selected_rows["id"].notna()
         ].copy()
 
+
 # ============================================================
 # DELETE SECTION
 # ============================================================
 
 st.divider()
-
 
 st.subheader(
     "🗑️ Delete Selected Rows"
@@ -2890,16 +2521,13 @@ if (
 ):
 
     st.info(
-        "☑️ Tick the checkbox on the left side of one or more "
-        "data rows to select them for deletion."
+        "☑️ Tick the checkbox on the left side "
+        "of one or more data rows to select "
+        "them for deletion."
     )
 
 
 else:
-
-    # ========================================================
-    # SELECTED QUANTITY
-    # ========================================================
 
     selected_quantity = 0.0
 
@@ -2910,23 +2538,14 @@ else:
     ):
 
         selected_quantity = (
-
             pd.to_numeric(
-
                 selected_rows[qty_col],
-
                 errors="coerce"
-
             )
             .fillna(0)
             .sum()
-
         )
 
-
-    # ========================================================
-    # SELECTED AMOUNT
-    # ========================================================
 
     selected_amount = 0.0
 
@@ -2937,17 +2556,12 @@ else:
     ):
 
         selected_amount = (
-
             pd.to_numeric(
-
                 selected_rows[amount_col],
-
                 errors="coerce"
-
             )
             .fillna(0)
             .sum()
-
         )
 
 
@@ -2984,42 +2598,42 @@ else:
         )
 
 
+    preview_columns = [
+        c
+        for c in selected_rows.columns
+        if c not in (
+            "id",
+            "_row_type"
+        )
+    ]
+
+
     st.dataframe(
-
-        selected_rows,
-
+        selected_rows[preview_columns],
         use_container_width=True,
-
         hide_index=True
-
     )
 
 
     confirm_delete = st.checkbox(
-
         f"⚠️ I understand that "
         f"{len(selected_rows):,} "
         "selected database row(s) "
         "will be permanently deleted."
-
     )
-
-
-st.divider()
 
 
 # ============================================================
 # SAVE BUTTON
 # ============================================================
 
+st.divider()
+
+
 save_clicked = st.button(
-
     "💾 Save All Changes to Database (Ctrl+S)",
-
     type="primary",
-
     use_container_width=False
-
 )
 
 
@@ -3032,13 +2646,11 @@ if save_clicked:
     conn = None
     cur = None
 
-
     try:
 
         conn = get_conn()
 
         cur = conn.cursor()
-
 
         n_inserted = 0
         n_updated = 0
@@ -3047,25 +2659,30 @@ if save_clicked:
 
         # ====================================================
         # 1. INSERT NEW ROWS
+        #
+        # Generated columns such as Amount are NOT inserted.
         # ====================================================
 
         rows_to_insert = (
-
             st.session_state.new_rows_df
-
-            .dropna(
-                how="all"
-            )
-
+            .dropna(how="all")
             .copy()
-
         )
 
 
         if len(rows_to_insert):
 
+            insert_columns = [
+                c
+                for c in entry_columns
+                if c not in generated_columns
+                and c not in hidden_internal_columns
+            ]
+
+
             cols_sql = ", ".join(
-                entry_columns
+                f'"{c}"'
+                for c in insert_columns
             )
 
 
@@ -3077,37 +2694,44 @@ if save_clicked:
                 row_values = []
 
 
-                for c in entry_columns:
+                for c in insert_columns:
 
                     if c in numeric_entry_cols:
 
-                        value = (
-                            clean_numeric_value(
-                                row[c]
-                            )
+                        value = clean_numeric_value(
+                            row[c]
                         )
 
                     else:
 
-                        if pd.isna(row[c]):
+                        try:
 
-                            value = None
+                            if pd.isna(row[c]):
 
-                        else:
+                                value = None
+
+                            else:
+
+                                value = str(
+                                    row[c]
+                                ).strip()
+
+                                if value == "":
+
+                                    value = None
+
+                        except Exception:
 
                             value = str(
                                 row[c]
                             ).strip()
-
 
                             if value == "":
 
                                 value = None
 
 
-                    row_values.append(
-                        value
-                    )
+                    row_values.append(value)
 
 
                 values.append(
@@ -3128,17 +2752,16 @@ if save_clicked:
                     """,
 
                     values
-
                 )
 
 
-                n_inserted = len(
-                    values
-                )
+                n_inserted = len(values)
 
 
         # ====================================================
-        # 2. UPDATE AMENDED CELLS
+        # 2. UPDATE EXISTING ROWS
+        #
+        # Generated columns are NEVER updated.
         # ====================================================
 
         if (
@@ -3151,29 +2774,30 @@ if save_clicked:
 
             for _, original_row in df.iterrows():
 
-                original_id = (
-                    original_row["id"]
-                )
+                original_id = original_row["id"]
 
 
                 if pd.notna(original_id):
 
-                    original_by_id[
-                        int(original_id)
-                    ] = original_row
+                    try:
+
+                        original_by_id[
+                            int(original_id)
+                        ] = original_row
+
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
+
+                        pass
 
 
             for _, row in edited_df.iterrows():
 
-                if (
-                    "_row_type"
-                    in edited_df.columns
-                ):
+                if "_row_type" in edited_df.columns:
 
-                    if (
-                        row["_row_type"]
-                        != "data"
-                    ):
+                    if row["_row_type"] != "data":
 
                         continue
 
@@ -3183,16 +2807,19 @@ if save_clicked:
                     continue
 
 
-                rid = int(
-                    row["id"]
-                )
+                try:
+
+                    rid = int(row["id"])
+
+                except (
+                    ValueError,
+                    TypeError
+                ):
+
+                    continue
 
 
-                orig = (
-                    original_by_id.get(
-                        rid
-                    )
-                )
+                orig = original_by_id.get(rid)
 
 
                 if orig is None:
@@ -3203,7 +2830,22 @@ if save_clicked:
                 changes = {}
 
 
+                # --------------------------------------------
+                # Only editable entry columns
+                # Generated Amount is excluded.
+                # --------------------------------------------
+
                 for c in entry_columns:
+
+                    if c in generated_columns:
+
+                        continue
+
+
+                    if c not in edited_df.columns:
+
+                        continue
+
 
                     is_num = (
                         c in numeric_entry_cols
@@ -3234,19 +2876,14 @@ if save_clicked:
 
                         else:
 
-                            changes[c] = (
-                                new_norm
-                            )
+                            changes[c] = new_norm
 
 
                 if changes:
 
                     set_sql = ", ".join(
-
-                        f"{c} = %s"
-
+                        f'"{c}" = %s'
                         for c in changes.keys()
-
                     )
 
 
@@ -3262,9 +2899,7 @@ if save_clicked:
                     )
 
 
-                    values_update.append(
-                        rid
-                    )
+                    values_update.append(rid)
 
 
                     cur.execute(
@@ -3277,22 +2912,19 @@ if save_clicked:
 
 
         # ====================================================
-        # 3. DELETE SELECTED ROWS
+        # 3. DELETE
         # ====================================================
 
         if (
             confirm_delete
             and not selected_rows.empty
-            and "id"
-            in selected_rows.columns
+            and "id" in selected_rows.columns
         ):
 
             ids_to_delete = []
 
 
-            for value in (
-                selected_rows["id"].tolist()
-            ):
+            for value in selected_rows["id"].tolist():
 
                 if pd.notna(value):
 
@@ -3320,16 +2952,11 @@ if save_clicked:
             if ids_to_delete:
 
                 cur.execute(
-
                     """
                     DELETE FROM supply_sheet
                     WHERE id = ANY(%s)
                     """,
-
-                    (
-                        ids_to_delete,
-                    )
-
+                    (ids_to_delete,)
                 )
 
 
@@ -3350,17 +2977,14 @@ if save_clicked:
         # ====================================================
 
         cur.close()
-
         cur = None
 
-
         conn.close()
-
         conn = None
 
 
         # ====================================================
-        # CLEAR STAGED ROWS
+        # CLEAR STAGED DATA
         # ====================================================
 
         st.session_state.new_rows_df = (
@@ -3375,6 +2999,7 @@ if save_clicked:
         # ====================================================
 
         load_data.clear()
+        get_table_columns.clear()
 
 
         # ====================================================
@@ -3382,15 +3007,10 @@ if save_clicked:
         # ====================================================
 
         st.success(
-
             f"Saved successfully — "
-
             f"{n_inserted:,} added, "
-
             f"{n_updated:,} updated, "
-
             f"{n_deleted:,} deleted."
-
         )
 
 
@@ -3402,33 +3022,24 @@ if save_clicked:
         if conn is not None:
 
             try:
-
                 conn.rollback()
-
             except Exception:
-
                 pass
 
 
         if cur is not None:
 
             try:
-
                 cur.close()
-
             except Exception:
-
                 pass
 
 
         if conn is not None:
 
             try:
-
                 conn.close()
-
             except Exception:
-
                 pass
 
 
