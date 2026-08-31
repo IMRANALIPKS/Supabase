@@ -1437,8 +1437,24 @@ def create_invoice_pdf(
         Table,
         TableStyle
     )
+    from reportlab.pdfgen import canvas as reportlab_canvas
 
     buffer = BytesIO()
+
+    # ========================================================
+    # BRAND PALETTE — matches the app's elegant 3D theme
+    # ========================================================
+
+    INK = colors.HexColor("#102033")
+    MUTED = colors.HexColor("#5d6f86")
+    LINE = colors.HexColor("#8fabc4")
+    LINE_SOFT = colors.HexColor("#c4d7eb")
+    ACCENT = colors.HexColor("#00a6c8")
+    ACCENT_DARK = colors.HexColor("#0b7795")
+    HEADER_BG = colors.HexColor("#0e5772")
+    TOTAL_BG = colors.HexColor("#eaf6ff")
+    ROW_ALT_BG = colors.HexColor("#f5f9fc")
+    SHADOW = colors.HexColor("#c9dcec")
 
     # ========================================================
     # PAGE
@@ -1448,7 +1464,8 @@ def create_invoice_pdf(
 
     LEFT_MARGIN = 8 * mm
     RIGHT_MARGIN = 8 * mm
-    TOP_MARGIN = 8 * mm
+    HEADER_HEIGHT = 57 * mm          # room reserved for the drawn letterhead
+    TOP_MARGIN = HEADER_HEIGHT
     BOTTOM_MARGIN = 8 * mm
 
     AVAILABLE_WIDTH = (
@@ -1457,47 +1474,36 @@ def create_invoice_pdf(
         - RIGHT_MARGIN
     )
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=LEFT_MARGIN,
-        rightMargin=RIGHT_MARGIN,
-        topMargin=TOP_MARGIN,
-        bottomMargin=BOTTOM_MARGIN
-    )
-
     # ========================================================
     # STYLES
     # ========================================================
 
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle(
-        "TitleStyle",
-        parent=styles["Title"],
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=21,
-        alignment=TA_CENTER,
-        spaceAfter=3 * mm
-    )
-
     header_style = ParagraphStyle(
         "HeaderStyle",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=7,
-        leading=8,
-        alignment=TA_CENTER
+        fontSize=9.4,
+        leading=11.3,
+        alignment=TA_CENTER,
+        textColor=colors.white
+    )
+
+    header_left_style = ParagraphStyle(
+        "HeaderLeftStyle",
+        parent=header_style,
+        alignment=TA_LEFT
     )
 
     normal_style = ParagraphStyle(
         "NormalStyle",
         parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=7,
-        leading=8,
-        alignment=TA_LEFT
+        fontName="Helvetica-Bold",
+        fontSize=9.4,
+        leading=11.3,
+        alignment=TA_LEFT,
+        textColor=INK
     )
 
     center_style = ParagraphStyle(
@@ -1512,474 +1518,466 @@ def create_invoice_pdf(
         alignment=TA_RIGHT
     )
 
-    # ========================================================
-    # STORY
-    # ========================================================
-
-    story = []
-
-    # ========================================================
-    # TITLE
-    # ========================================================
-
-    story.append(
-        Paragraph(
-            "OD PAKISTAN",
-            title_style
-        )
+    total_label_style = ParagraphStyle(
+        "TotalLabelStyle",
+        parent=normal_style,
+        fontSize=10.6,
+        alignment=TA_CENTER,
+        textColor=ACCENT_DARK
     )
 
-    story.append(
-        Paragraph(
-            "SUPPLY SHEET / INVOICE",
-            ParagraphStyle(
-                "SubTitle",
-                parent=styles["Normal"],
-                fontName="Helvetica-Bold",
-                fontSize=10,
-                alignment=TA_CENTER,
-                spaceAfter=3 * mm
-            )
-        )
+    total_value_style = ParagraphStyle(
+        "TotalValueStyle",
+        parent=normal_style,
+        fontSize=10.6,
+        alignment=TA_CENTER,
+        textColor=INK
     )
-
-    # ========================================================
-    # INVOICE INFORMATION
-    # ========================================================
-
-    info_data = [
-        [
-            Paragraph("<b>Branch:</b>", header_style),
-            Paragraph(str(branch), normal_style),
-
-            Paragraph("<b>Date:</b>", header_style),
-            Paragraph(str(invoice_date), normal_style),
-
-            Paragraph("<b>Invoice No:</b>", header_style),
-            Paragraph(str(invoice_no), normal_style),
-        ]
-    ]
-
-    info_table = Table(
-        info_data,
-        colWidths=[
-            20 * mm,
-            45 * mm,
-            18 * mm,
-            30 * mm,
-            25 * mm,
-            45 * mm
-        ],
-        hAlign="LEFT"
-    )
-
-    info_table.setStyle(
-        TableStyle([
-            (
-                "BOX",
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.grey
-            ),
-            (
-                "INNERGRID",
-                (0, 0),
-                (-1, -1),
-                0.25,
-                colors.lightgrey
-            ),
-            (
-                "VALIGN",
-                (0, 0),
-                (-1, -1),
-                "MIDDLE"
-            ),
-            (
-                "LEFTPADDING",
-                (0, 0),
-                (-1, -1),
-                4
-            ),
-            (
-                "RIGHTPADDING",
-                (0, 0),
-                (-1, -1),
-                4
-            ),
-            (
-                "TOPPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-            (
-                "BOTTOMPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-        ])
-    )
-
-    story.append(info_table)
-    story.append(Spacer(1, 4 * mm))
 
     # ========================================================
     # PREPARE DATA
     # ========================================================
 
     df = invoice_df.copy()
-
-    # Remove completely empty rows
     df = df.dropna(how="all")
 
-    # --------------------------------------------------------
-    # COLUMN NAME DETECTION
-    # --------------------------------------------------------
-
     def find_column(possible_names):
-
         for col in df.columns:
-
             clean_col = str(col).strip().lower()
-
             for name in possible_names:
-
                 if name in clean_col:
                     return col
-
         return None
 
-    branch_col = find_column([
-        "branch"
-    ])
-
-    date_col = find_column([
-        "date",
-        "inv date",
-        "invoice date"
-    ])
-
-    invoice_col = find_column([
-        "inv #",
-        "inv no",
-        "invoice no",
-        "invoice"
-    ])
-
-    description_col = find_column([
-        "description",
-        "particular",
-        "item",
-        "item name"
-    ])
-
-    uom_col = find_column([
-        "uom",
-        "unit"
-    ])
-
-    quantity_col = find_column([
-        "quantity",
-        "qty"
-    ])
-
-    rate_col = find_column([
-        "rate"
-    ])
-
-    to_rate_col = find_column([
-        "t.o rate",
-        "to rate",
-        "torate"
-    ])
-
-    amount_col = find_column([
-        "amount",
-        "total"
-    ])
+    description_col = find_column(["description", "particular", "item", "item name"])
+    uom_col = find_column(["uom", "unit"])
+    quantity_col = find_column(["quantity", "qty"])
+    rate_col = find_column(["rate"])
+    amount_col = find_column(["amount", "total"])
+    to_number_col = find_column(["to_rate", "t.o #", "to #", "t.o rate", "to rate", "torate"])
 
     # ========================================================
-    # STANDARD COLUMN ORDER
+    # T.O # — pulled straight from the data's T.O # column
+    # (first non-empty / non-zero value found for this invoice)
     # ========================================================
 
-    columns = []
+    to_number_header = ""
 
-    if branch_col:
-        columns.append(("Branch", branch_col))
+    if to_number_col:
 
-    if date_col:
-        columns.append(("Date", date_col))
+        for raw_value in df[to_number_col].tolist():
 
-    if invoice_col:
-        columns.append(("Inv #", invoice_col))
+            if pd.isna(raw_value):
+                continue
+
+            text_value = str(raw_value).strip()
+
+            if text_value in ("", "0", "0.0", "0.00"):
+                continue
+
+            try:
+                number = float(text_value.replace(",", ""))
+                text_value = f"{number:,.2f}" if number % 1 else f"{number:,.0f}"
+            except Exception:
+                pass
+
+            to_number_header = text_value
+            break
+
+    date_text_header = (
+        pd.Timestamp(invoice_date).strftime("%d-%B-%Y")
+        if pd.notna(invoice_date)
+        else str(invoice_date)
+    )
+
+    # ========================================================
+    # LETTERHEAD — drawn directly on the canvas of every page
+    # (repeats automatically if an invoice spills onto page 2, 3…)
+    # ========================================================
+
+    def draw_shadowed_text(pdf_canvas, x, y, text, font, size, ink_color, align="left"):
+        """Light offset copy behind the main glyph gives a subtle
+        embossed / 3D look to the big letterhead titles."""
+
+        pdf_canvas.setFont(font, size)
+        pdf_canvas.setFillColor(SHADOW)
+
+        draw_fn = {
+            "left": pdf_canvas.drawString,
+            "center": pdf_canvas.drawCentredString,
+            "right": pdf_canvas.drawRightString,
+        }[align]
+
+        draw_fn(x + 0.35 * mm, y - 0.35 * mm, text)
+
+        pdf_canvas.setFillColor(ink_color)
+        draw_fn(x, y, text)
+
+    def draw_letterhead(pdf_canvas, page_label):
+
+        pdf_canvas.saveState()
+
+        top_y = PAGE_HEIGHT - 8.75 * mm
+
+        # -- Brand row (embossed OD wordmark) --------------------------
+        draw_shadowed_text(
+            pdf_canvas, PAGE_WIDTH / 2, top_y,
+            "OD", "Helvetica-Bold", 22.5, INK, align="center"
+        )
+
+        pdf_canvas.setFont("Helvetica", 9.4)
+        pdf_canvas.setFillColor(MUTED)
+        pdf_canvas.drawRightString(
+            PAGE_WIDTH - RIGHT_MARGIN, top_y + 1.9 * mm, page_label
+        )
+
+        pdf_canvas.setFont("Helvetica-Bold", 11.25)
+        pdf_canvas.setFillColor(ACCENT_DARK)
+        pdf_canvas.drawCentredString(
+            PAGE_WIDTH / 2, top_y - 6.875 * mm, "OverDose"
+        )
+
+        draw_shadowed_text(
+            pdf_canvas, PAGE_WIDTH / 2, top_y - 15.625 * mm,
+            "INVOICE", "Helvetica-Bold", 17.5, INK, align="center"
+        )
+
+        # -- Accent divider (gradient-style band) -----------------------
+        band_y = top_y - 20 * mm
+        band_steps = 40
+        for i in range(band_steps):
+            t = i / (band_steps - 1)
+            r = 0x00 + t * (0x8f - 0x00)
+            g = 0xa6 + t * (0xab - 0xa6)
+            b = 0xc8 + t * (0xc4 - 0xc8)
+            pdf_canvas.setStrokeColor(colors.Color(r / 255, g / 255, b / 255))
+            x0 = LEFT_MARGIN + (AVAILABLE_WIDTH * i / band_steps)
+            x1 = LEFT_MARGIN + (AVAILABLE_WIDTH * (i + 1) / band_steps)
+            pdf_canvas.setLineWidth(1.1)
+            pdf_canvas.line(x0, band_y, x1, band_y)
+
+        # -- Customer Name / Date / Invoice # / T.O # -------------------
+        left_x = LEFT_MARGIN
+        right_label_x = PAGE_WIDTH - RIGHT_MARGIN - 48 * mm
+
+        row1_y = band_y - 6.875 * mm
+        row2_y = row1_y - 6.25 * mm
+        row3_y = row2_y - 6.25 * mm    # T.O # label
+        row4_y = row3_y - 6.25 * mm    # T.O # value — its own row, up to 30 chars
+
+        pdf_canvas.setFont("Helvetica-Bold", 9.4)
+        pdf_canvas.setFillColor(MUTED)
+        pdf_canvas.drawString(left_x, row1_y, "CUSTOMER NAME")
+
+        pdf_canvas.setFont("Helvetica-Bold", 13.1)
+        pdf_canvas.setFillColor(INK)
+        pdf_canvas.drawString(left_x, row2_y, str(branch))
+
+        pdf_canvas.setFont("Helvetica-Bold", 9.4)
+        pdf_canvas.setFillColor(MUTED)
+        pdf_canvas.drawString(right_label_x, row1_y, "DATE")
+        pdf_canvas.setFont("Helvetica-Bold", 10.6)
+        pdf_canvas.setFillColor(INK)
+        pdf_canvas.drawString(right_label_x + 20 * mm, row1_y, date_text_header)
+
+        pdf_canvas.setFont("Helvetica-Bold", 9.4)
+        pdf_canvas.setFillColor(MUTED)
+        pdf_canvas.drawString(right_label_x, row2_y, "INVOICE #")
+        pdf_canvas.setFont("Helvetica-Bold", 10.6)
+        pdf_canvas.setFillColor(INK)
+        pdf_canvas.drawString(right_label_x + 20 * mm, row2_y, str(invoice_no))
+
+        # T.O # — label on its own row, value directly below on the next
+        # row (kept on two rows since the value can run up to 30 characters).
+        # The value is right-aligned to the page's right margin so it always
+        # has room to grow leftward regardless of how long it is.
+        pdf_canvas.setFont("Helvetica-Bold", 9.4)
+        pdf_canvas.setFillColor(MUTED)
+        pdf_canvas.drawString(right_label_x, row3_y, "T.O #")
+
+        pdf_canvas.setFont("Helvetica-Bold", 8.75)
+        pdf_canvas.setFillColor(INK)
+        pdf_canvas.drawRightString(
+            PAGE_WIDTH - RIGHT_MARGIN, row4_y, to_number_header
+        )
+
+        pdf_canvas.restoreState()
+
+    # ========================================================
+    # NUMBERED CANVAS — draws the letterhead + "Page X of Y" on
+    # every physical page once the final page count is known
+    # ========================================================
+
+    class NumberedCanvas(reportlab_canvas.Canvas):
+
+        def __init__(self, *args, **kwargs):
+            reportlab_canvas.Canvas.__init__(self, *args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total_pages = len(self._saved_page_states)
+            for state in self._saved_page_states:
+                self.__dict__.update(state)
+                page_label = f"Page {self._pageNumber} of {total_pages}"
+                draw_letterhead(self, page_label)
+                reportlab_canvas.Canvas.showPage(self)
+            reportlab_canvas.Canvas.save(self)
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=LEFT_MARGIN,
+        rightMargin=RIGHT_MARGIN,
+        topMargin=TOP_MARGIN,
+        bottomMargin=BOTTOM_MARGIN
+    )
+
+    story = []
+
+    # ========================================================
+    # COLUMN LAYOUT
+    #
+    # S.No / Bar Code / Item Name / UoM / Qty / Rate / Amount
+    #
+    # - "Bar Code" isn't in the data, so it's left blank per row.
+    # - Branch, Date, Invoice # and T.O # now live in the
+    #   letterhead, so they're no longer table columns.
+    # ========================================================
+
+    columns = [("S.No", None), ("Bar Code", None)]
 
     if description_col:
-        columns.append(("Description", description_col))
-
+        columns.append(("Item Name", description_col))
     if uom_col:
-        columns.append(("UOM", uom_col))
-
+        columns.append(("UoM", uom_col))
     if quantity_col:
-        columns.append(("Quantity", quantity_col))
-
+        columns.append(("Qty", quantity_col))
     if rate_col:
         columns.append(("Rate", rate_col))
-
-    if to_rate_col:
-        columns.append(("T.O Rate", to_rate_col))
-
     if amount_col:
         columns.append(("Amount", amount_col))
 
-    # If no recognized columns, use original columns
-    if not columns:
+    numeric_display_names = ["Qty", "Rate", "Amount"]
+    center_display_names = ["S.No", "Bar Code", "UoM"]
 
-        columns = [
-            (str(col), col)
-            for col in df.columns
-        ]
+    item_name_index = next(
+        (i for i, (name, _) in enumerate(columns) if name == "Item Name"),
+        None
+    )
+    qty_index = next(
+        (i for i, (name, _) in enumerate(columns) if name == "Qty"),
+        None
+    )
+    amount_index = next(
+        (i for i, (name, _) in enumerate(columns) if name == "Amount"),
+        None
+    )
+
+    def format_cell(display_name, original_col, row_number, row):
+
+        if display_name == "S.No":
+            return str(row_number)
+
+        if display_name == "Bar Code":
+            return ""
+
+        value = row.get(original_col, "")
+
+        if pd.isna(value):
+            value = ""
+
+        value = str(value)
+
+        if display_name in numeric_display_names:
+            try:
+                number = float(str(value).replace(",", "").strip())
+                value = f"{number:,.0f}" if display_name == "Amount" else f"{number:,.2f}"
+            except Exception:
+                pass
+
+        return (
+            value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
 
     # ========================================================
-    # HEADER
+    # HEADER ROW
     # ========================================================
 
-    table_data = []
-
-    table_data.append([
-        Paragraph(str(display_name), header_style)
-        for display_name, original_col in columns
-    ])
+    table_data = [[
+        Paragraph(str(display_name), header_left_style if display_name == "Item Name" else header_style)
+        for display_name, _ in columns
+    ]]
 
     # ========================================================
-    # DATA ROWS
+    # DATA ROWS — S.No numbered sequentially 1, 2, 3, 4… for
+    # each invoice
     # ========================================================
 
-    for _, row in df.iterrows():
+    for row_number, (_, row) in enumerate(df.iterrows(), start=1):
 
         pdf_row = []
 
         for display_name, original_col in columns:
 
-            value = row.get(original_col, "")
+            value = format_cell(display_name, original_col, row_number, row)
 
-            if pd.isna(value):
-                value = ""
-
-            value = str(value)
-
-            # ------------------------------------------------
-            # NUMBER FORMATTING
-            # ------------------------------------------------
-
-            if display_name in [
-                "Quantity",
-                "Rate",
-                "T.O Rate",
-                "Amount"
-            ]:
-
-                try:
-
-                    number = float(
-                        str(value)
-                        .replace(",", "")
-                        .strip()
-                    )
-
-                    value = f"{number:,.2f}"
-
-                except:
-
-                    pass
-
-            # ------------------------------------------------
-            # ESCAPE HTML
-            # ------------------------------------------------
-
-            value = (
-                value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-            )
-
-            # ------------------------------------------------
-            # ALIGNMENT
-            # ------------------------------------------------
-
-            if display_name in [
-                "Quantity",
-                "Rate",
-                "T.O Rate",
-                "Amount"
-            ]:
-
-                pdf_row.append(
-                    Paragraph(
-                        value,
-                        right_style
-                    )
-                )
-
-            elif display_name in [
-                "Date",
-                "Inv #",
-                "UOM"
-            ]:
-
-                pdf_row.append(
-                    Paragraph(
-                        value,
-                        center_style
-                    )
-                )
-
+            if display_name in numeric_display_names:
+                pdf_row.append(Paragraph(value, center_style))
+            elif display_name in center_display_names:
+                pdf_row.append(Paragraph(value, center_style))
             else:
-
-                pdf_row.append(
-                    Paragraph(
-                        value,
-                        normal_style
-                    )
-                )
+                pdf_row.append(Paragraph(value, normal_style))
 
         table_data.append(pdf_row)
 
+    item_row_count = len(table_data) - 1  # excludes header row
+
     # ========================================================
-    # AUTOFIT COLUMN WIDTHS
+    # TOTAL ROW — appended into the same grid so it lines up
+    # perfectly under Item Name / Qty / Amount, one row below
+    # the last item
     # ========================================================
 
-    # Minimum and maximum width for each column
-    MIN_WIDTH = 12 * mm
-    MAX_WIDTH = 70 * mm
+    total_quantity = (
+        pd.to_numeric(df[quantity_col], errors="coerce").fillna(0).sum()
+        if quantity_col else None
+    )
+    total_amount = (
+        pd.to_numeric(df[amount_col], errors="coerce").fillna(0).sum()
+        if amount_col else None
+    )
+
+    total_row = ["" for _ in columns]
+
+    total_label_index = item_name_index if item_name_index is not None else 0
+    total_row[total_label_index] = Paragraph("TOTAL", total_label_style)
+
+    if qty_index is not None and total_quantity is not None:
+        total_row[qty_index] = Paragraph(f"{total_quantity:,.2f}", total_value_style)
+
+    if amount_index is not None and total_amount is not None:
+        total_row[amount_index] = Paragraph(f"{total_amount:,.0f}", total_value_style)
+
+    total_row = [
+        cell if isinstance(cell, Paragraph) else Paragraph("", normal_style)
+        for cell in total_row
+    ]
+
+    # A blank spacer row separates the items from TOTAL by one row
+    spacer_row = [Paragraph("", normal_style) for _ in columns]
+
+    spacer_row_idx = len(table_data)
+    table_data.append(spacer_row)
+
+    table_data.append(total_row)
+
+    total_row_idx = len(table_data) - 1
+
+    # ========================================================
+    # AUTO-FIT COLUMN WIDTHS — every column sized from its own
+    # content (header + longest cell), then scaled proportionally
+    # so the table exactly spans the page width
+    # ========================================================
+
+    MIN_WIDTH = 13 * mm
+    MAX_WIDTH = 115 * mm
+    CHAR_WIDTH = 2.625 * mm
 
     column_widths = []
 
-    for col_index, (display_name, original_col) in enumerate(columns):
+    for display_name, original_col in columns:
 
-        # Start with header width
-        longest_text = len(str(display_name))
+        longest_text = len(display_name)
 
-        # Check actual content
-        for value in df[original_col].tolist():
+        if display_name == "S.No":
+            longest_text = max(longest_text, len(str(item_row_count)))
 
-            if pd.isna(value):
-                continue
+        elif display_name == "Bar Code":
+            longest_text = max(longest_text, len("Bar Code"))
 
-            text = str(value)
-
-            # Numeric values after formatting
-            if display_name in [
-                "Quantity",
-                "Rate",
-                "T.O Rate",
-                "Amount"
-            ]:
-
+        elif display_name == "Amount":
+            for value in df[original_col].tolist() if original_col else []:
+                if pd.isna(value):
+                    continue
                 try:
+                    number = float(str(value).replace(",", "").strip())
+                    text = f"{number:,.0f}"
+                except Exception:
+                    text = str(value)
+                longest_text = max(longest_text, min(len(text), 60))
+            if total_amount is not None:
+                longest_text = max(longest_text, len(f"{total_amount:,.0f}"))
 
-                    number = float(
-                        str(text)
-                        .replace(",", "")
-                        .strip()
-                    )
-
+        elif display_name == "Qty" and total_quantity is not None:
+            longest_text = max(longest_text, len(f"{total_quantity:,.2f}"))
+            for value in df[original_col].tolist():
+                if pd.isna(value):
+                    continue
+                text = str(value)
+                try:
+                    number = float(str(text).replace(",", "").strip())
                     text = f"{number:,.2f}"
-
-                except:
-
+                except Exception:
                     pass
+                longest_text = max(longest_text, min(len(text), 60))
 
-            # Limit calculation length
-            longest_text = max(
-                longest_text,
-                min(len(text), 45)
-            )
+        elif original_col is not None:
+            for value in df[original_col].tolist():
+                if pd.isna(value):
+                    continue
+                text = str(value)
+                if display_name in numeric_display_names:
+                    try:
+                        number = float(str(text).replace(",", "").strip())
+                        text = f"{number:,.2f}"
+                    except Exception:
+                        pass
+                longest_text = max(longest_text, min(len(text), 60))
 
-        # Approximate character width
-        width = (
-            longest_text * 3.0 * mm
-        )
+        width = max(longest_text * CHAR_WIDTH, MIN_WIDTH)
+        width = min(width, MAX_WIDTH)
 
-        # Minimum
-        width = max(
-            width,
-            MIN_WIDTH
-        )
-
-        # Maximum
-        width = min(
-            width,
-            MAX_WIDTH
-        )
+        # Manual width boosts for specific columns (applied on top of
+        # the autofit base width, before the page-width scaling below)
+        WIDTH_BOOST = {
+            "UoM": 1.50,
+            "Qty": 1.50,
+            "Rate": 1.10,
+            "Amount": 1.50,
+        }
+        width *= WIDTH_BOOST.get(display_name, 1.0)
 
         column_widths.append(width)
 
-    # ========================================================
-    # SCALE TO A4 PAGE WIDTH
-    # ========================================================
+    # Scale to fit the page width — S.No and Bar Code are kept at their
+    # own content-fit width (never squeezed below what their text needs);
+    # the remaining columns absorb the scaling to make up the difference
+    protected_names = ("S.No", "Bar Code")
 
-    total_width = sum(column_widths)
+    protected_total = sum(
+        w for (display_name, _), w in zip(columns, column_widths)
+        if display_name in protected_names
+    )
 
-    if total_width > AVAILABLE_WIDTH:
+    scalable_total = sum(
+        w for (display_name, _), w in zip(columns, column_widths)
+        if display_name not in protected_names
+    )
 
-        scale = (
-            AVAILABLE_WIDTH
-            / total_width
-        )
+    remaining_available = AVAILABLE_WIDTH - protected_total
 
+    if scalable_total > 0 and remaining_available > 0:
+        scale = remaining_available / scalable_total
         column_widths = [
-            width * scale
-            for width in column_widths
-        ]
-
-    # ========================================================
-    # DESCRIPTION GETS EXTRA SPACE
-    # ========================================================
-
-    if description_col:
-
-        description_index = None
-
-        for i, (display_name, original_col) in enumerate(columns):
-
-            if original_col == description_col:
-
-                description_index = i
-                break
-
-        if description_index is not None:
-
-            # Give description more room
-            extra_space = (
-                AVAILABLE_WIDTH
-                - sum(column_widths)
-            )
-
-            if extra_space > 0:
-
-                column_widths[
-                    description_index
-                ] += extra_space
-
-    # ========================================================
-    # FINAL SAFETY CHECK
-    # ========================================================
-
-    total_width = sum(column_widths)
-
-    if total_width > AVAILABLE_WIDTH:
-
-        scale = (
-            AVAILABLE_WIDTH
-            / total_width
-        )
-
-        column_widths = [
-            width * scale
-            for width in column_widths
+            w if display_name in protected_names else w * scale
+            for (display_name, _), w in zip(columns, column_widths)
         ]
 
     # ========================================================
@@ -1993,203 +1991,55 @@ def create_invoice_pdf(
         hAlign="LEFT"
     )
 
-    invoice_table.setStyle(
-        TableStyle([
+    table_style_commands = [
+        # -- Header row -------------------------------------------------
+        ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("LINEBELOW", (0, 0), (-1, 0), 1.4, ACCENT),
 
-            # ------------------------------------------------
-            # HEADER
-            # ------------------------------------------------
+        # -- Grid (items only — spacer row stays borderless) -------------
+        ("GRID", (0, 0), (-1, spacer_row_idx - 1), 0.4, LINE_SOFT),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
 
-            (
-                "BACKGROUND",
-                (0, 0),
-                (-1, 0),
-                colors.HexColor("#d9eaf7")
-            ),
+        # -- Padding --------------------------------------------------------
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
 
-            (
-                "TEXTCOLOR",
-                (0, 0),
-                (-1, 0),
-                colors.HexColor("#102033")
-            ),
+        # -- Alternating item rows -------------------------------------
+        ("ROWBACKGROUNDS", (0, 1), (-1, spacer_row_idx - 1), [colors.white, ROW_ALT_BG]),
 
-            (
-                "FONTNAME",
-                (0, 0),
-                (-1, 0),
-                "Helvetica-Bold"
-            ),
+        # -- Blank spacer row: one clear row of empty space between the
+        # -- last item and TOTAL, no grid lines
+        ("BACKGROUND", (0, spacer_row_idx), (-1, spacer_row_idx), colors.white),
+        ("TOPPADDING", (0, spacer_row_idx), (-1, spacer_row_idx), 1.9),
+        ("BOTTOMPADDING", (0, spacer_row_idx), (-1, spacer_row_idx), 1.9),
 
-            # ------------------------------------------------
-            # GRID
-            # ------------------------------------------------
+        # -- Total row: "TOTAL" centred in the Item Name column only,
+        # -- no spanning; light background, clearly separated -----------
+        ("BACKGROUND", (0, total_row_idx), (-1, total_row_idx), TOTAL_BG),
+        ("LINEABOVE", (0, total_row_idx), (-1, total_row_idx), 1.2, ACCENT_DARK),
+        ("BOX", (0, total_row_idx), (-1, total_row_idx), 0.6, LINE),
+        ("TOPPADDING", (0, total_row_idx), (-1, total_row_idx), 5.6),
+        ("BOTTOMPADDING", (0, total_row_idx), (-1, total_row_idx), 5.6),
+    ]
 
-            (
-                "GRID",
-                (0, 0),
-                (-1, -1),
-                0.4,
-                colors.HexColor("#8fabc4")
-            ),
-
-            # ------------------------------------------------
-            # ALIGNMENT
-            # ------------------------------------------------
-
-            (
-                "VALIGN",
-                (0, 0),
-                (-1, -1),
-                "MIDDLE"
-            ),
-
-            # ------------------------------------------------
-            # PADDING
-            # ------------------------------------------------
-
-            (
-                "LEFTPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-
-            (
-                "RIGHTPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-
-            (
-                "TOPPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-
-            (
-                "BOTTOMPADDING",
-                (0, 0),
-                (-1, -1),
-                3
-            ),
-
-            # ------------------------------------------------
-            # ALTERNATE ROW COLOR
-            # ------------------------------------------------
-
-            (
-                "ROWBACKGROUNDS",
-                (0, 1),
-                (-1, -1),
-                [
-                    colors.white,
-                    colors.HexColor("#f5f9fc")
-                ]
-            ),
-
-        ])
-    )
+    invoice_table.setStyle(TableStyle(table_style_commands))
 
     story.append(invoice_table)
 
     # ========================================================
-    # TOTAL AMOUNT
+    # BUILD PDF (NumberedCanvas draws the letterhead + Page X of Y)
     # ========================================================
 
-    if amount_col:
-
-        try:
-
-            total_amount = (
-                pd.to_numeric(
-                    df[amount_col],
-                    errors="coerce"
-                )
-                .fillna(0)
-                .sum()
-            )
-
-            story.append(
-                Spacer(1, 3 * mm)
-            )
-
-            total_data = [
-                [
-                    "",
-                    Paragraph(
-                        "<b>Grand Total</b>",
-                        right_style
-                    ),
-                    Paragraph(
-                        f"<b>{total_amount:,.2f}</b>",
-                        right_style
-                    )
-                ]
-            ]
-
-            total_table = Table(
-                total_data,
-                colWidths=[
-                    AVAILABLE_WIDTH * 0.55,
-                    AVAILABLE_WIDTH * 0.20,
-                    AVAILABLE_WIDTH * 0.25
-                ],
-                hAlign="RIGHT"
-            )
-
-            total_table.setStyle(
-                TableStyle([
-                    (
-                        "BOX",
-                        (1, 0),
-                        (-1, -1),
-                        0.5,
-                        colors.HexColor("#8fabc4")
-                    ),
-                    (
-                        "BACKGROUND",
-                        (1, 0),
-                        (-1, -1),
-                        colors.HexColor("#e4eff8")
-                    ),
-                    (
-                        "VALIGN",
-                        (0, 0),
-                        (-1, -1),
-                        "MIDDLE"
-                    ),
-                    (
-                        "TOPPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        4
-                    ),
-                    (
-                        "BOTTOMPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        4
-                    ),
-                ])
-            )
-
-            story.append(total_table)
-
-        except Exception:
-            pass
-
-    # ========================================================
-    # BUILD PDF
-    # ========================================================
-
-    doc.build(story)
+    doc.build(story, canvasmaker=NumberedCanvas)
 
     buffer.seek(0)
 
     return buffer.getvalue()
+
 
 # ============================================================
 # GENERATE ALL INDIVIDUAL INVOICE FILES
