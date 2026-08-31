@@ -690,11 +690,15 @@ _grid_custom_css = {
 }
 
 
-def render_styled_table(dataframe, height=350, center_columns=None):
+def render_styled_table(dataframe, height=350, center_columns=None, left_columns=None, fit_columns=False):
     """
     Renders a read-only AgGrid table with the same 3D
     navy/cyan header + embossed-cell theme used across
     the OD Pakistan apps.
+
+    fit_columns=True stretches/shrinks every column to fit inside the
+    table width so all columns are visible without horizontal
+    scrolling — useful for wide tables with many columns.
     """
 
     if dataframe.empty:
@@ -737,19 +741,75 @@ def render_styled_table(dataframe, height=350, center_columns=None):
                     cellStyle=center_style_js
                 )
 
-    gb.configure_grid_options(
-        rowHeight=34,
-        headerHeight=34,
-        onFirstDataRendered=JsCode(
+    grid_custom_css = _grid_custom_css
+
+    if left_columns:
+
+        left_style_js = JsCode(
             """
             function(params) {
-                setTimeout(function() {
-                    params.api.autoSizeAllColumns(false);
-                }, 200);
+                return { 'textAlign': 'left' };
             }
             """
         )
-    )
+
+        # Copy the shared theme CSS so this left-align override only
+        # applies to this table, not every AgGrid table in the app
+        grid_custom_css = dict(_grid_custom_css)
+        grid_custom_css[".header-left-align .ag-header-cell-label"] = {
+            "justify-content": "flex-start !important",
+        }
+
+        for col in left_columns:
+
+            if col in dataframe.columns:
+
+                gb.configure_column(
+                    col,
+                    headerClass="header-left-align",
+                    cellStyle=left_style_js
+                )
+
+    if fit_columns:
+
+        # Stretch every column to fill the available width so all
+        # columns stay visible together, with no horizontal scrolling
+        gb.configure_grid_options(
+            rowHeight=34,
+            headerHeight=34,
+            onFirstDataRendered=JsCode(
+                """
+                function(params) {
+                    setTimeout(function() {
+                        params.api.sizeColumnsToFit();
+                    }, 200);
+                }
+                """
+            ),
+            onGridSizeChanged=JsCode(
+                """
+                function(params) {
+                    params.api.sizeColumnsToFit();
+                }
+                """
+            )
+        )
+
+    else:
+
+        gb.configure_grid_options(
+            rowHeight=34,
+            headerHeight=34,
+            onFirstDataRendered=JsCode(
+                """
+                function(params) {
+                    setTimeout(function() {
+                        params.api.autoSizeAllColumns(false);
+                    }, 200);
+                }
+                """
+            )
+        )
 
     grid_options = gb.build()
 
@@ -757,9 +817,9 @@ def render_styled_table(dataframe, height=350, center_columns=None):
         dataframe,
         gridOptions=grid_options,
         height=height,
-        fit_columns_on_grid_load=False,
+        fit_columns_on_grid_load=fit_columns,
         allow_unsafe_jscode=True,
-        custom_css=_grid_custom_css,
+        custom_css=grid_custom_css,
         enable_enterprise_modules=False
     )
 
@@ -1106,6 +1166,40 @@ if branch_mode != "All Branches":
 
 
 # ============================================================
+# SEARCH (ALL COLUMNS) — narrows report_df before the KPI
+# cards, preview table, and PDF generation are built, so
+# everything downstream reflects the searched subset
+# ============================================================
+
+search_term = st.text_input(
+    "🔍 Search invoices (searches every column)",
+    value="",
+    placeholder="Type a branch, item, invoice #, amount, date…"
+)
+
+if search_term.strip():
+
+    searchable_df = report_df.copy()
+    searchable_df["inv_date"] = searchable_df["inv_date"].dt.strftime("%d-%b-%Y")
+
+    search_mask = (
+        searchable_df
+        .astype(str)
+        .apply(
+            lambda col: col.str.contains(
+                search_term.strip(),
+                case=False,
+                na=False,
+                regex=False
+            )
+        )
+        .any(axis=1)
+    )
+
+    report_df = report_df[search_mask]
+
+
+# ============================================================
 # INVOICE GROUPS
 # ============================================================
 
@@ -1235,7 +1329,7 @@ with col4:
     st.html(f"""
     <div style="{card_style}">
         {kpi_label("Grand Total")}
-        {kpi_value(f"Rs. {grand_total:,.0f}")}
+        {kpi_value(f"{grand_total:,.0f}")}
     </div>
     """)
 
@@ -1290,70 +1384,70 @@ if report_df.empty:
 st.subheader("📋 Invoices to Generate")
 
 
-invoice_summary = (
-    report_df
-    .groupby(
-        [
-            "inv_date",
-            "branch",
-            "inv_no"
-        ],
-        as_index=False
-    )
-    .agg(
-        records=("id", "count"),
-        quantity=("quantity", "sum"),
-        amount=("amount", "sum")
-    )
-    .sort_values(
-        [
-            "inv_date",
-            "branch",
-            "inv_no"
-        ]
-    )
+preview = report_df.copy()
+
+
+preview["Bar Code"] = ""   # not present in the data — shown blank, same as the PDF
+
+preview["T.O #"] = preview["to_rate"].map(
+    lambda x: f"{x:,.2f}" if pd.notna(x) and x != 0 else ""
 )
 
-
-preview = invoice_summary.copy()
-
-
-preview["inv_date"] = (
+preview["Date"] = (
     preview["inv_date"]
     .dt.strftime("%d-%b-%Y")
 )
 
-
-preview["quantity"] = (
+preview["Quantity"] = (
     preview["quantity"]
-    .map(
-        lambda x: f"{x:,.2f}"
-    )
+    .map(lambda x: f"{x:,.2f}")
 )
 
+preview["Rate"] = (
+    preview["rate"]
+    .map(lambda x: f"{x:,.2f}")
+)
 
-preview["amount"] = (
+preview["T.O Rate"] = (
+    preview["to_rate"]
+    .map(lambda x: f"{x:,.2f}")
+)
+
+preview["Amount"] = (
     preview["amount"]
-    .map(
-        lambda x: f"Rs. {x:,.2f}"
-    )
+    .map(lambda x: f"{x:,.0f}")
 )
 
+preview = preview.rename(
+    columns={
+        "branch": "Branch",
+        "inv_no": "Invoice No",
+        "description": "Description",
+    }
+)
 
-preview.columns = [
-    "Date",
-    "Branch",
-    "Invoice No",
-    "Records",
-    "Quantity",
-    "Amount"
+preview = preview[
+    [
+        "Bar Code",
+        "T.O #",
+        "Branch",
+        "Date",
+        "Invoice No",
+        "Description",
+        "Quantity",
+        "Rate",
+        "T.O Rate",
+        "Amount",
+    ]
 ]
 
 
 render_styled_table(
     preview,
     height=400,
-    center_columns=["Date", "Branch", "Invoice No", "Records"]
+    center_columns=["Bar Code", "T.O #", "Branch", "Date", "Invoice No", "Quantity", "Rate", "T.O Rate", "Amount"],
+    left_columns=["Description"],
+    fit_columns=True
 )
 
 
@@ -1613,7 +1707,7 @@ def create_invoice_pdf(
         pdf_canvas.setFillColor(ink_color)
         draw_fn(x, y, text)
 
-    def draw_letterhead(pdf_canvas, page_label):
+    def draw_letterhead(pdf_canvas, page_label, page_number):
 
         pdf_canvas.saveState()
 
@@ -1657,49 +1751,54 @@ def create_invoice_pdf(
             pdf_canvas.line(x0, band_y, x1, band_y)
 
         # -- Customer Name / Date / Invoice # / T.O # -------------------
-        left_x = LEFT_MARGIN
-        right_label_x = PAGE_WIDTH - RIGHT_MARGIN - 48 * mm
+        # Only shown on page 1 — page 2, 3, and onward just keep the
+        # brand heading above (OD / OverDose / INVOICE) plus the item
+        # table's own repeating column headings.
+        if page_number == 1:
 
-        row1_y = band_y - 6.875 * mm
-        row2_y = row1_y - 6.25 * mm
-        row3_y = row2_y - 6.25 * mm    # T.O # label
-        row4_y = row3_y - 6.25 * mm    # T.O # value — its own row, up to 30 chars
+            left_x = LEFT_MARGIN
+            right_label_x = PAGE_WIDTH - RIGHT_MARGIN - 48 * mm
 
-        pdf_canvas.setFont("Helvetica-Bold", 9.4)
-        pdf_canvas.setFillColor(MUTED)
-        pdf_canvas.drawString(left_x, row1_y, "CUSTOMER NAME")
+            row1_y = band_y - 6.875 * mm
+            row2_y = row1_y - 6.25 * mm
+            row3_y = row2_y - 6.25 * mm    # T.O # label
+            row4_y = row3_y - 6.25 * mm    # T.O # value — its own row, up to 30 chars
 
-        pdf_canvas.setFont("Helvetica-Bold", 13.1)
-        pdf_canvas.setFillColor(INK)
-        pdf_canvas.drawString(left_x, row2_y, str(branch))
+            pdf_canvas.setFont("Helvetica-Bold", 9.4)
+            pdf_canvas.setFillColor(MUTED)
+            pdf_canvas.drawString(left_x, row1_y, "CUSTOMER NAME")
 
-        pdf_canvas.setFont("Helvetica-Bold", 9.4)
-        pdf_canvas.setFillColor(MUTED)
-        pdf_canvas.drawString(right_label_x, row1_y, "DATE")
-        pdf_canvas.setFont("Helvetica-Bold", 10.6)
-        pdf_canvas.setFillColor(INK)
-        pdf_canvas.drawString(right_label_x + 20 * mm, row1_y, date_text_header)
+            pdf_canvas.setFont("Helvetica-Bold", 13.1)
+            pdf_canvas.setFillColor(INK)
+            pdf_canvas.drawString(left_x, row2_y, str(branch))
 
-        pdf_canvas.setFont("Helvetica-Bold", 9.4)
-        pdf_canvas.setFillColor(MUTED)
-        pdf_canvas.drawString(right_label_x, row2_y, "INVOICE #")
-        pdf_canvas.setFont("Helvetica-Bold", 10.6)
-        pdf_canvas.setFillColor(INK)
-        pdf_canvas.drawString(right_label_x + 20 * mm, row2_y, str(invoice_no))
+            pdf_canvas.setFont("Helvetica-Bold", 9.4)
+            pdf_canvas.setFillColor(MUTED)
+            pdf_canvas.drawString(right_label_x, row1_y, "DATE")
+            pdf_canvas.setFont("Helvetica-Bold", 10.6)
+            pdf_canvas.setFillColor(INK)
+            pdf_canvas.drawString(right_label_x + 20 * mm, row1_y, date_text_header)
 
-        # T.O # — label on its own row, value directly below on the next
-        # row (kept on two rows since the value can run up to 30 characters).
-        # The value is right-aligned to the page's right margin so it always
-        # has room to grow leftward regardless of how long it is.
-        pdf_canvas.setFont("Helvetica-Bold", 9.4)
-        pdf_canvas.setFillColor(MUTED)
-        pdf_canvas.drawString(right_label_x, row3_y, "T.O #")
+            pdf_canvas.setFont("Helvetica-Bold", 9.4)
+            pdf_canvas.setFillColor(MUTED)
+            pdf_canvas.drawString(right_label_x, row2_y, "INVOICE #")
+            pdf_canvas.setFont("Helvetica-Bold", 10.6)
+            pdf_canvas.setFillColor(INK)
+            pdf_canvas.drawString(right_label_x + 20 * mm, row2_y, str(invoice_no))
 
-        pdf_canvas.setFont("Helvetica-Bold", 8.75)
-        pdf_canvas.setFillColor(INK)
-        pdf_canvas.drawRightString(
-            PAGE_WIDTH - RIGHT_MARGIN, row4_y, to_number_header
-        )
+            # T.O # — label on its own row, value directly below on the next
+            # row (kept on two rows since the value can run up to 30 characters).
+            # The value is right-aligned to the page's right margin so it always
+            # has room to grow leftward regardless of how long it is.
+            pdf_canvas.setFont("Helvetica-Bold", 9.4)
+            pdf_canvas.setFillColor(MUTED)
+            pdf_canvas.drawString(right_label_x, row3_y, "T.O #")
+
+            pdf_canvas.setFont("Helvetica-Bold", 8.75)
+            pdf_canvas.setFillColor(INK)
+            pdf_canvas.drawRightString(
+                PAGE_WIDTH - RIGHT_MARGIN, row4_y, to_number_header
+            )
 
         pdf_canvas.restoreState()
 
@@ -1723,7 +1822,7 @@ def create_invoice_pdf(
             for state in self._saved_page_states:
                 self.__dict__.update(state)
                 page_label = f"Page {self._pageNumber} of {total_pages}"
-                draw_letterhead(self, page_label)
+                draw_letterhead(self, page_label, self._pageNumber)
                 reportlab_canvas.Canvas.showPage(self)
             reportlab_canvas.Canvas.save(self)
 
@@ -2113,12 +2212,15 @@ def create_invoice_files(dataframe):
 
 
         # ----------------------------------------------------
-        # PDF filename
+        # PDF filename — branch is included so files stay
+        # uniquely named once everything sits in one flat
+        # folder inside the ZIP (no more per-branch subfolders)
         # ----------------------------------------------------
 
         if safe_invoice:
 
             filename = (
+                f"{safe_branch}_"
                 f"{date_text}_"
                 f"{safe_invoice}.pdf"
             )
@@ -2126,6 +2228,7 @@ def create_invoice_files(dataframe):
         else:
 
             filename = (
+                f"{safe_branch}_"
                 f"{date_text}_Invoice.pdf"
             )
 
@@ -2218,76 +2321,93 @@ if "invoice_files" in st.session_state:
 
 
         # ====================================================
-        # ONLY ONE INVOICE
+        # ONE COMBINED ZIP — always available, whatever the
+        # branch selection (All / Individual / Multiple). Every
+        # PDF sits inside one single folder in the ZIP — no
+        # per-branch subfolders. Filenames already carry the
+        # branch name so files stay uniquely identifiable.
+        # ====================================================
+
+        zip_buffer = BytesIO()
+
+        zip_root_folder = (
+            "OD_PAKISTAN_Invoices_"
+            f"{start_date.strftime('%Y%m%d')}_"
+            f"{end_date.strftime('%Y%m%d')}"
+        )
+
+        with ZipFile(
+            zip_buffer,
+            "w",
+            ZIP_DEFLATED
+        ) as zip_file:
+
+            for invoice in invoice_files:
+
+                # ------------------------------------------------
+                # IMPORTANT:
+                #
+                # ZIP structure — one flat folder, everything inside:
+                #
+                # OD_PAKISTAN_Invoices_.../
+                #     Branch_Date_InvoiceNo.pdf
+                #     Branch_Date_InvoiceNo.pdf
+                #     ...
+                # ------------------------------------------------
+
+                zip_path = (
+                    f"{zip_root_folder}/"
+                    f"{invoice['filename']}"
+                )
+
+                zip_file.writestr(
+                    zip_path,
+                    invoice["data"]
+                )
+
+        zip_buffer.seek(0)
+
+        zip_filename = f"{zip_root_folder}.zip"
+
+        # ====================================================
+        # SINGLE INVOICE — offer a direct PDF download alongside
+        # the ZIP option, for convenience
         # ====================================================
 
         if len(invoice_files) == 1:
 
             invoice = invoice_files[0]
 
-            st.download_button(
-                label="⬇️ Download Invoice PDF",
-                data=invoice["data"],
-                file_name=invoice["filename"],
-                mime="application/pdf",
-                type="primary",
-                use_container_width=True
-            )
+            col_single, col_zip = st.columns(2)
 
+            with col_single:
+
+                st.download_button(
+                    label="⬇️ Download Invoice PDF",
+                    data=invoice["data"],
+                    file_name=invoice["filename"],
+                    mime="application/pdf",
+                    type="primary",
+                    use_container_width=True
+                )
+
+            with col_zip:
+
+                st.download_button(
+                    label="⬇️ Download as ZIP (Branch Folder)",
+                    data=zip_buffer.getvalue(),
+                    file_name=zip_filename,
+                    mime="application/zip",
+                    use_container_width=True
+                )
 
         # ====================================================
-        # MULTIPLE INVOICES → ZIP
+        # MULTIPLE INVOICES — one ZIP, invoices grouped by
+        # branch folder (covers All Branches, Individual Branch
+        # with several invoices, and Multiple Branches alike)
         # ====================================================
 
         else:
-
-            zip_buffer = BytesIO()
-
-
-            with ZipFile(
-                zip_buffer,
-                "w",
-                ZIP_DEFLATED
-            ) as zip_file:
-
-                for invoice in invoice_files:
-
-                    # ------------------------------------------------
-                    # IMPORTANT:
-                    #
-                    # ZIP structure:
-                    #
-                    # Branch/
-                    #     Date_InvoiceNo.pdf
-                    #
-                    # No date subfolder.
-                    # ------------------------------------------------
-
-                    zip_path = (
-                        f"{invoice['branch']}/"
-                        f"{invoice['filename']}"
-                    )
-
-
-                    zip_file.writestr(
-                        zip_path,
-                        invoice["data"]
-                    )
-
-
-            zip_buffer.seek(0)
-
-
-            # ----------------------------------------------------
-            # ZIP NAME
-            # ----------------------------------------------------
-
-            zip_filename = (
-                "OD_PAKISTAN_Invoices_"
-                f"{start_date.strftime('%Y%m%d')}_"
-                f"{end_date.strftime('%Y%m%d')}.zip"
-            )
-
 
             st.download_button(
                 label=(
@@ -2302,11 +2422,11 @@ if "invoice_files" in st.session_state:
                 use_container_width=True
             )
 
-
             st.info(
                 "ZIP structure: "
-                "**Branch → Individual Invoice PDFs**. "
-                "The invoice date is included in each PDF filename."
+                "**one folder containing every invoice PDF** — "
+                "no branch subfolders. "
+                "Each filename includes the branch, date, and invoice number."
             )
 
 
@@ -2363,7 +2483,9 @@ if "invoice_files" in st.session_state:
         render_styled_table(
             generated_df,
             height=400,
-            center_columns=["Date", "Branch", "Invoice No"]
+            center_columns=["Branch", "Date", "Invoice No"],
+            left_columns=["PDF File"],
+            fit_columns=True
         )
 
 
