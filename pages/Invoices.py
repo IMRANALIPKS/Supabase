@@ -685,6 +685,72 @@ _grid_custom_css = {
         "background-color":
             "#f4fbff !important"
 
+    },
+
+
+    # =====================================================
+    # FLOATING FILTER ROW (Excel-style per-column search box
+    # directly under each header)
+    # =====================================================
+
+    ".ag-floating-filter": {
+
+        "background":
+            "#eaf6ff !important",
+
+        "border-bottom":
+            "1px solid #92b8d8 !important"
+
+    },
+
+
+    ".ag-floating-filter-input": {
+
+        "font-family":
+            "Segoe UI, Aptos, Calibri, sans-serif !important",
+
+        "font-size":
+            "12px !important"
+
+    },
+
+
+    ".ag-floating-filter-input input": {
+
+        "border":
+            "1px solid #8fabc4 !important",
+
+        "border-radius":
+            "5px !important",
+
+        "background":
+            "#ffffff !important",
+
+        "color":
+            "#102033 !important",
+
+        "padding":
+            "2px 6px !important"
+
+    },
+
+
+    ".ag-header-icon, .ag-header-cell-menu-button": {
+
+        "color":
+            "#ffffff !important",
+
+        "opacity":
+            "0.9 !important"
+
+    },
+
+
+    ".ag-side-bar": {
+
+        "border-left":
+            "1px solid #cbd6e2 !important"
+
     }
 
 }
@@ -716,11 +782,33 @@ def render_styled_table(dataframe, height=350, center_columns=None, left_columns
     gb.configure_default_column(
         resizable=True,
         sortable=True,
-        filter=True,
-        floatingFilter=False,
+        filter="agTextColumnFilter",
+        floatingFilter=True,
         editable=False,
-        minWidth=60
+        minWidth=60,
+        filterParams={
+            "buttons": ["reset", "apply"],
+            "defaultJoinOperator": "AND"
+        }
     )
+
+    # Numeric-looking columns get Excel-style number filters
+    # (greater than / less than / equals / range) instead of a
+    # plain text-contains filter
+    NUMERIC_FILTER_COLUMNS = (
+        "Quantity", "Rate", "T.O Rate", "Amount", "Records",
+        "quantity", "rate", "to_rate", "amount", "records"
+    )
+
+    for col in dataframe.columns:
+
+        if col in NUMERIC_FILTER_COLUMNS:
+
+            gb.configure_column(
+                col,
+                filter="agNumberColumnFilter",
+                floatingFilter=True
+            )
 
     if center_columns:
 
@@ -770,6 +858,13 @@ def render_styled_table(dataframe, height=350, center_columns=None, left_columns
                     cellStyle=left_style_js
                 )
 
+    # Side bar with a Filters tab (per-column filter list, like
+    # Excel's filter pane) and a Columns tab (show/hide, pin, etc.)
+    gb.configure_side_bar(
+        filters_panel=True,
+        columns_panel=True
+    )
+
     if fit_columns:
 
         # Stretch every column to fill the available width so all
@@ -777,6 +872,7 @@ def render_styled_table(dataframe, height=350, center_columns=None, left_columns
         gb.configure_grid_options(
             rowHeight=34,
             headerHeight=34,
+            floatingFiltersHeight=32,
             onFirstDataRendered=JsCode(
                 """
                 function(params) {
@@ -800,6 +896,7 @@ def render_styled_table(dataframe, height=350, center_columns=None, left_columns
         gb.configure_grid_options(
             rowHeight=34,
             headerHeight=34,
+            floatingFiltersHeight=32,
             onFirstDataRendered=JsCode(
                 """
                 function(params) {
@@ -873,25 +970,24 @@ def load_invoice_data():
     conn = get_connection()
 
     query = """
-        SELECT
-            id,
-            branch,
-            inv_date,
-            inv_no,
-            description,
-            uom,
-            quantity,
-            rate,
-            to_rate,
-            amount
-        FROM supply_sheet
-        ORDER BY
-            inv_date,
-            branch,
-            inv_no,
-            id
-    """
-
+    SELECT
+        id,
+        branch,
+        inv_date,
+        inv_no,
+        description,
+        uom,
+        quantity,
+        rate,
+        to_rate,
+        amount
+    FROM supply_sheet
+    ORDER BY
+    branch,
+    inv_date,
+    description,
+    id
+"""
     try:
 
         df = pd.read_sql_query(
@@ -1172,7 +1268,7 @@ if branch_mode != "All Branches":
 # ============================================================
 
 search_term = st.text_input(
-    "🔍 Search invoices (searches every column)",
+    "🔍 Quick Search — searches all columns",
     value="",
     placeholder="Type a branch, item, invoice #, amount, date…"
 )
