@@ -15,6 +15,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     SimpleDocTemplate,
+    BaseDocTemplate,
+    PageTemplate,
+    Frame,
+    NextPageTemplate,
     Table,
     TableStyle,
     Paragraph,
@@ -1209,9 +1213,12 @@ def create_invoice_pdf(
     # Large top margin because the complete letterhead is shown.
     #
     # PAGE 2+:
-    # Very small top margin.
-    # Page number is at the very top.
-    # Column headings therefore start immediately underneath.
+    # Small top margin — page number sits at the very top, and
+    # the column header starts one row below it.
+    #
+    # NOTE: this value is consumed by the "later" Frame below.
+    # Tune it here if you want more/less gap under the page
+    # number on page 2 onward.
     # ========================================================
 
     FIRST_PAGE_TOP_MARGIN = 57 * mm
@@ -2687,66 +2694,74 @@ def create_invoice_pdf(
     # ========================================================
     # DOCUMENT
     #
-    # The first-page margin is used while building the story.
-    # Later pages are manually repositioned by the page template
-    # below.
+    # Two separate page templates are used so page 1 and
+    # page 2+ actually get different content-frame heights:
+    #
+    #   "First" -> big top margin (room for the full letterhead)
+    #   "Later" -> small top margin (header sits just below the
+    #              "Page X of Y" label)
+    #
+    # NOTE: overriding topMargin inside a SimpleDocTemplate's
+    # handle_pageBegin does NOT resize the underlying Frame —
+    # the frame geometry is fixed once at build time. That was
+    # the original bug: page 2+ kept using the page-1 frame
+    # (57mm from top) no matter what OTHER_PAGE_TOP_MARGIN said.
+    # Using two explicit Frames/PageTemplates + NextPageTemplate
+    # fixes this properly.
     # ========================================================
 
-    doc = SimpleDocTemplate(
+    frame_first = Frame(
+        LEFT_MARGIN,
+        BOTTOM_MARGIN,
+        AVAILABLE_WIDTH,
+        PAGE_HEIGHT - FIRST_PAGE_TOP_MARGIN - BOTTOM_MARGIN,
+        id="first",
+        leftPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        bottomPadding=0,
+    )
+
+    frame_later = Frame(
+        LEFT_MARGIN,
+        BOTTOM_MARGIN,
+        AVAILABLE_WIDTH,
+        PAGE_HEIGHT - OTHER_PAGE_TOP_MARGIN - BOTTOM_MARGIN,
+        id="later",
+        leftPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        bottomPadding=0,
+    )
+
+    doc = BaseDocTemplate(
         buffer,
         pagesize=A4,
         leftMargin=LEFT_MARGIN,
         rightMargin=RIGHT_MARGIN,
-
-        # First page needs room for the complete letterhead.
         topMargin=FIRST_PAGE_TOP_MARGIN,
-
         bottomMargin=BOTTOM_MARGIN
     )
 
+    doc.addPageTemplates(
+        [
+            PageTemplate(
+                id="First",
+                frames=[frame_first]
+            ),
+            PageTemplate(
+                id="Later",
+                frames=[frame_later]
+            ),
+        ]
+    )
+
+    # Page 1 uses the default ("First") template automatically;
+    # this schedules every page after it to switch to "Later".
     story = [
+        NextPageTemplate("Later"),
         invoice_table
     ]
-
-    # ========================================================
-    # BUILD
-    #
-    # Page 1 has the large letterhead area.
-    #
-    # Page 2+ uses a very small top margin. This is the key
-    # change that makes the repeated column header start near
-    # the top of the page, immediately below "Page X of Y".
-    # ========================================================
-
-    class InvoiceDocTemplate(SimpleDocTemplate):
-
-        def handle_pageBegin(self):
-
-            page_num = self.page
-
-            if page_num == 1:
-
-                self.topMargin = (
-                    FIRST_PAGE_TOP_MARGIN
-                )
-
-            else:
-
-                self.topMargin = (
-                    OTHER_PAGE_TOP_MARGIN
-                )
-
-            self._handle_pageBegin()
-
-    # Recreate using the custom document class
-    doc = InvoiceDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=LEFT_MARGIN,
-        rightMargin=RIGHT_MARGIN,
-        topMargin=FIRST_PAGE_TOP_MARGIN,
-        bottomMargin=BOTTOM_MARGIN
-    )
 
     doc.build(
         story,
